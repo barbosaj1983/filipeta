@@ -1,4 +1,4 @@
-// main.js - VERSÃO COM SINGLE INSTANCE LOCK + ELECTRON-UPDATER + DOWNLOAD CORRIGIDO
+// main.js - VERSÃO FINAL COM SISTEMA DE UPDATE FORÇADO E NOMES CORRETOS
 const { app, BrowserWindow, globalShortcut, shell, ipcMain } = require('electron');
 const path = require('path');
 const AutoLaunch = require('auto-launch');
@@ -944,8 +944,7 @@ ipcMain.handle('updater-get-version', async () => {
 });
 
 // ========================================
-// SISTEMA DE UPDATE FORÇADO - FORÇA BRUTA
-// Substitua o handler downloadAndInstallUpdate no main.js
+// SISTEMA DE UPDATE FORÇADO COM NOMES CORRETOS - VERSÃO FINAL
 // ========================================
 
 ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
@@ -1079,12 +1078,13 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
         console.log('🔥 INICIANDO INSTALAÇÃO FORÇADA...');
         
         // ========================================
-        // FORÇA BRUTA: INSTALAÇÃO AGRESSIVA
+        // SCRIPT BATCH CORRIGIDO COM NOMES CORRETOS
         // ========================================
         
-        // 1. Criar script batch para instalação forçada
+        // Criar script batch para instalação forçada
         const batchScript = path.join(tempDir, 'install_force.bat');
         const batchContent = `@echo off
+chcp 65001 > nul
 echo FILIPETA FORCE UPDATE INSTALLER
 echo ================================
 
@@ -1092,38 +1092,105 @@ echo Aguardando 3 segundos...
 timeout /t 3 /nobreak > nul
 
 echo Matando processos Filipeta...
-taskkill /f /im "Filipeta.Assistente.de.Balcao.exe" > nul 2>&1
-taskkill /f /im "filipeta.exe" > nul 2>&1
+taskkill /f /im "Filipeta*.exe" > nul 2>&1
+taskkill /f /im "*Filipeta*" > nul 2>&1
 taskkill /f /im "*filipeta*" > nul 2>&1
+taskkill /f /im "*Assistente*" > nul 2>&1
 
 echo Aguardando limpeza de processos...
 timeout /t 2 /nobreak > nul
 
-echo Executando instalador...
+echo Executando instalador: ${updateInfo.filename}
 "${tempFilePath}" /VERYSILENT /NORESTART /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS /SP-
 
-echo Aguardando instalação...
+echo Aguardando instalação completar...
+timeout /t 8 /nobreak > nul
+
+echo Procurando Filipeta instalado...
+
+REM Tentar localizar o executável da aplicação em várias localizações possíveis
+set "APP_FOUND=0"
+
+REM Local 1: AppData Local Programs
+if exist "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcão.exe" (
+    echo Encontrado em AppData Local Programs
+    start "" "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcão.exe"
+    set "APP_FOUND=1"
+    goto :APP_STARTED
+)
+
+REM Local 2: Program Files
+if exist "%PROGRAMFILES%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe" (
+    echo Encontrado em Program Files
+    start "" "%PROGRAMFILES%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe"
+    set "APP_FOUND=1"
+    goto :APP_STARTED
+)
+
+REM Local 3: Program Files x86
+if exist "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe" (
+    echo Encontrado em Program Files x86
+    start "" "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe"
+    set "APP_FOUND=1"
+    goto :APP_STARTED
+)
+
+REM Local 4: Busca por padrão alternativo 1
+if exist "%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe" (
+    echo Encontrado como filipeta.exe
+    start "" "%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe"
+    set "APP_FOUND=1"
+    goto :APP_STARTED
+)
+
+REM Local 5: Busca por padrão alternativo 2
+if exist "%PROGRAMFILES%\\Filipeta\\Filipeta.exe" (
+    echo Encontrado como Filipeta.exe
+    start "" "%PROGRAMFILES%\\Filipeta\\Filipeta.exe"
+    set "APP_FOUND=1"
+    goto :APP_STARTED
+)
+
+REM Local 6: Busca genérica com findstr
+echo Fazendo busca avançada por Filipeta...
+for /f "delims=" %%i in ('dir /s /b "%LOCALAPPDATA%\\Programs\\*Filipeta*.exe" 2^>nul') do (
+    echo Encontrado via busca: %%i
+    start "" "%%i"
+    set "APP_FOUND=1"
+    goto :APP_STARTED
+)
+
+for /f "delims=" %%i in ('dir /s /b "%PROGRAMFILES%\\*Filipeta*.exe" 2^>nul') do (
+    echo Encontrado via busca: %%i
+    start "" "%%i"
+    set "APP_FOUND=1"
+    goto :APP_STARTED
+)
+
+:APP_STARTED
+if "%APP_FOUND%"=="1" (
+    echo ✅ Filipeta reiniciado com sucesso!
+) else (
+    echo ⚠️ Filipeta não encontrado automaticamente
+    echo Tente iniciar manualmente ou reiniciar o sistema
+)
+
+echo Limpando arquivos temporários...
 timeout /t 5 /nobreak > nul
 
-echo Iniciando Filipeta...
-start "" "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta.Assistente.de.Balcao.exe"
-if errorlevel 1 (
-    start "" "%PROGRAMFILES%\\Filipeta Assistente de Balcao\\Filipeta.Assistente.de.Balcao.exe"
-)
-if errorlevel 1 (
-    start "" "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcao\\Filipeta.Assistente.de.Balcao.exe"
-)
-
-echo Limpando arquivos temporarios...
-timeout /t 10 /nobreak > nul
+REM Limpeza agressiva de arquivos temporários
 del /f /q "${tempFilePath}" > nul 2>&1
+del /f /q "${batchScript}" > nul 2>&1
 rmdir /s /q "${tempDir}" > nul 2>&1
 
-echo Instalacao forcada concluida!
+echo Limpeza concluída!
+echo ================================
+echo ATUALIZAÇÃO FORÇADA FINALIZADA
+timeout /t 2 /nobreak > nul
 `;
-        
-        fs.writeFileSync(batchScript, batchContent, { mode: 0o777 });
-        console.log('📝 Script de instalação forçada criado');
+
+        fs.writeFileSync(batchScript, batchContent, { encoding: 'utf8', mode: 0o777 });
+        console.log('📝 Script de instalação forçada criado com busca inteligente');
         
         // 2. Preparar para instalação forçada
         console.log('⚡ MODO FORÇA BRUTA ATIVADO');
@@ -1370,7 +1437,7 @@ app.whenReady().then(async () => {
   console.log('✅ Filipeta Assistente iniciado com sucesso');
   console.log('✅ Single instance lock ativo - apenas uma instância permitida');
   console.log('✅ Popup configurado para abertura APENAS manual');
-  console.log('✅ Sistema de updates automático configurado para GitHub Releases');
+  console.log('✅ Sistema de updates FORÇADO configurado para GitHub Releases');
 });
 
 app.on('activate', () => {
