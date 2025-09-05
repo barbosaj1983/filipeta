@@ -2,20 +2,20 @@
   "app": {
     "name": "assistente-balcao",
     "productName": "Filipeta Assistente de Balcão",
-    "version": "1.10.5",
+    "version": "1.10.6",
     "description": "Assistente de balcão em formato filipeta - Versão Unificada"
   },
   "build": {
     "date": "2025-09-05",
-    "timestamp": 1757105767624,
-    "iso": "2025-09-05T20:56:07.982Z",
+    "timestamp": 1757109578184,
+    "iso": "2025-09-05T21:59:38.616Z",
     "year": 2025
   },
   "git": {
     "branch": "main",
-    "commit": "bbed730",
-    "commitLong": "bbed7304abb503782dbc39f00af6c3a9694e66b4",
-    "commitDate": "2025-09-05 16:56:07 -0400",
+    "commit": "9af6ce6",
+    "commitLong": "9af6ce6a6c179d408cf5361bce82f3a0adaba45a",
+    "commitDate": "2025-09-05 17:59:37 -0400",
     "author": "barbosaj1983",
     "status": "clean",
     "repository": "https://github.com/barbosaj1983/filipeta.git"
@@ -34,8 +34,8 @@
   },
   "metadata": {
     "generator": "Filipeta Build Info Generator",
-    "generatedAt": "2025-09-05T20:56:07.982Z",
-    "buildId": "1.10.5-bbed730-mf7bend4",
+    "generatedAt": "2025-09-05T21:59:38.616Z",
+    "buildId": "1.10.6-9af6ce6-mf7dobm0",
     "environment": "production"
   }
 }

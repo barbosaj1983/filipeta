@@ -1100,11 +1100,22 @@ taskkill /f /im "*Assistente*" > nul 2>&1
 echo Aguardando limpeza de processos...
 timeout /t 2 /nobreak > nul
 
-echo Executando instalador: ${updateInfo.filename}
-"${tempFilePath}" /VERYSILENT /NORESTART /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS /SP-
+echo ================================
+echo EXECUTANDO INSTALADOR COM MONITOR
+echo ================================
+echo Instalador: ${updateInfo.filename}
+echo Local: ${tempFilePath}
+echo ================================
+
+REM VERSÃO COM MONITOR VISÍVEL - Remove VERYSILENT
+"${tempFilePath}" /SILENT /NORESTART /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS /SP-
+
+echo ================================
+echo INSTALAÇÃO CONCLUÍDA
+echo ================================
 
 echo Aguardando instalação completar...
-timeout /t 8 /nobreak > nul
+timeout /t 5 /nobreak > nul
 
 echo Procurando Filipeta instalado...
 
@@ -1113,7 +1124,7 @@ set "APP_FOUND=0"
 
 REM Local 1: AppData Local Programs
 if exist "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcão.exe" (
-    echo Encontrado em AppData Local Programs
+    echo ✅ Encontrado em AppData Local Programs
     start "" "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcão.exe"
     set "APP_FOUND=1"
     goto :APP_STARTED
@@ -1121,7 +1132,7 @@ if exist "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcão.exe
 
 REM Local 2: Program Files
 if exist "%PROGRAMFILES%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe" (
-    echo Encontrado em Program Files
+    echo ✅ Encontrado em Program Files
     start "" "%PROGRAMFILES%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe"
     set "APP_FOUND=1"
     goto :APP_STARTED
@@ -1129,7 +1140,7 @@ if exist "%PROGRAMFILES%\\Filipeta Assistente de Balcão\\Filipeta Assistente de
 
 REM Local 3: Program Files x86
 if exist "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe" (
-    echo Encontrado em Program Files x86
+    echo ✅ Encontrado em Program Files x86
     start "" "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe"
     set "APP_FOUND=1"
     goto :APP_STARTED
@@ -1137,7 +1148,7 @@ if exist "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\Filipeta Assisten
 
 REM Local 4: Busca por padrão alternativo 1
 if exist "%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe" (
-    echo Encontrado como filipeta.exe
+    echo ✅ Encontrado como filipeta.exe
     start "" "%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe"
     set "APP_FOUND=1"
     goto :APP_STARTED
@@ -1145,48 +1156,57 @@ if exist "%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe" (
 
 REM Local 5: Busca por padrão alternativo 2
 if exist "%PROGRAMFILES%\\Filipeta\\Filipeta.exe" (
-    echo Encontrado como Filipeta.exe
+    echo ✅ Encontrado como Filipeta.exe
     start "" "%PROGRAMFILES%\\Filipeta\\Filipeta.exe"
     set "APP_FOUND=1"
     goto :APP_STARTED
 )
 
 REM Local 6: Busca genérica com findstr
-echo Fazendo busca avançada por Filipeta...
+echo 🔍 Fazendo busca avançada por Filipeta...
 for /f "delims=" %%i in ('dir /s /b "%LOCALAPPDATA%\\Programs\\*Filipeta*.exe" 2^>nul') do (
-    echo Encontrado via busca: %%i
+    echo ✅ Encontrado via busca: %%i
     start "" "%%i"
     set "APP_FOUND=1"
     goto :APP_STARTED
 )
 
 for /f "delims=" %%i in ('dir /s /b "%PROGRAMFILES%\\*Filipeta*.exe" 2^>nul') do (
-    echo Encontrado via busca: %%i
+    echo ✅ Encontrado via busca: %%i
     start "" "%%i"
     set "APP_FOUND=1"
     goto :APP_STARTED
 )
 
 :APP_STARTED
+echo ================================
 if "%APP_FOUND%"=="1" (
-    echo ✅ Filipeta reiniciado com sucesso!
+    echo ✅ FILIPETA REINICIADO COM SUCESSO!
+    echo A aplicação foi atualizada e está sendo iniciada...
 ) else (
-    echo ⚠️ Filipeta não encontrado automaticamente
-    echo Tente iniciar manualmente ou reiniciar o sistema
+    echo ⚠️ FILIPETA NÃO ENCONTRADO AUTOMATICAMENTE
+    echo Por favor, inicie manualmente ou reinicie o sistema
+    echo Locais verificados:
+    echo - %LOCALAPPDATA%\\Programs\\filipeta\\
+    echo - %PROGRAMFILES%\\Filipeta Assistente de Balcão\\
+    echo - %PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\
 )
+echo ================================
 
-echo Limpando arquivos temporários...
-timeout /t 5 /nobreak > nul
+echo 🧹 Limpando arquivos temporários...
+timeout /t 3 /nobreak > nul
 
 REM Limpeza agressiva de arquivos temporários
 del /f /q "${tempFilePath}" > nul 2>&1
 del /f /q "${batchScript}" > nul 2>&1
 rmdir /s /q "${tempDir}" > nul 2>&1
 
-echo Limpeza concluída!
+echo ✅ Limpeza concluída!
 echo ================================
-echo ATUALIZAÇÃO FORÇADA FINALIZADA
-timeout /t 2 /nobreak > nul
+echo 🎉 ATUALIZAÇÃO FORÇADA FINALIZADA
+echo ================================
+echo Você pode fechar esta janela.
+timeout /t 5 /nobreak > nul
 `;
 
         fs.writeFileSync(batchScript, batchContent, { encoding: 'utf8', mode: 0o777 });
