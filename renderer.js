@@ -1,4 +1,4 @@
-// renderer.js - VERSÃO CORRIGIDA COM POPUP USO CONTÍNUO
+// renderer.js - VERSÃO CORRIGIDA COM POPUP USO CONTÍNUO + SISTEMA DE UPDATE
 (function () {
   'use strict';
 
@@ -27,7 +27,12 @@
     btnClearCpf: $('#btn-clear-cpf'),
     btnClearEan: $('#btn-clear-ean'),
     minimizeBtn: $('#minimize-btn'),
-    toast: $('#toast')
+    toast: $('#toast'),
+    // NOVOS ELEMENTOS PARA UPDATE
+    checkUpdateBtn: $('#check-update-btn'),
+    updateStatus: $('#update-status'),
+    progressBar: $('#progress-bar'),
+    progressFill: $('#progress-fill')
   };
 
   console.log('📋 Elementos DOM encontrados:', {
@@ -35,7 +40,8 @@
     inputEan: !!dom.inputEan,
     minimizeBtn: !!dom.minimizeBtn,
     btnClearCpf: !!dom.btnClearCpf,
-    btnClearEan: !!dom.btnClearEan
+    btnClearEan: !!dom.btnClearEan,
+    checkUpdateBtn: !!dom.checkUpdateBtn
   });
 
   // =============================
@@ -353,6 +359,207 @@
     }
   }
 
+  // ========================================
+  // SISTEMA DE UPDATES - NOVA FUNCIONALIDADE
+  // ========================================
+
+  async function verificarAtualizacoes() {
+    console.log('🔄 Verificando atualizações...');
+    
+    if (!dom.checkUpdateBtn || !dom.updateStatus) {
+      console.error('❌ Elementos de update não encontrados');
+      return;
+    }
+
+    try {
+      // Desabilitar botão e mostrar status
+      dom.checkUpdateBtn.disabled = true;
+      dom.checkUpdateBtn.textContent = '🔍 VERIFICANDO...';
+      dom.updateStatus.style.display = 'block';
+      dom.updateStatus.className = 'update-status checking';
+      dom.updateStatus.innerHTML = '🔍 Verificando atualizações no GitHub...';
+      
+      // Versão atual (pode ser obtida do package.json ou HTML)
+      const versaoAtual = "1.10.0";
+      
+      // Consultar API do GitHub
+      console.log('📡 Consultando API do GitHub...');
+      const response = await fetch('https://api.github.com/repos/barbosaj1983/filipeta/releases/latest');
+      
+      if (!response.ok) {
+        throw new Error(`Erro na API: ${response.status}`);
+      }
+      
+      const release = await response.json();
+      const versaoNova = release.tag_name.replace('v', '');
+      
+      console.log(`📋 Versão atual: ${versaoAtual}`);
+      console.log(`📋 Versão disponível: ${versaoNova}`);
+      
+      if (versaoNova === versaoAtual) {
+        // Não há atualizações
+        dom.updateStatus.className = 'update-status available';
+        dom.updateStatus.innerHTML = `✅ Você já tem a versão mais recente (v${versaoAtual})`;
+        dom.checkUpdateBtn.textContent = '✅ ATUALIZADO';
+        showToast('✅ App atualizado!');
+        
+        setTimeout(() => {
+          dom.updateStatus.style.display = 'none';
+          dom.checkUpdateBtn.disabled = false;
+          dom.checkUpdateBtn.textContent = '🔄 UPDATE';
+        }, 3000);
+        
+        return;
+      }
+      
+      // Nova versão disponível
+      dom.updateStatus.className = 'update-status available';
+      dom.updateStatus.innerHTML = `🎉 Nova versão disponível: v${versaoNova}<br>📥 Preparando instalação segura...`;
+      showToast(`🎉 Nova versão v${versaoNova} encontrada!`);
+      
+      // Encontrar arquivo .exe
+      const exeAsset = release.assets.find(asset => asset.name.endsWith('.exe'));
+      
+      if (!exeAsset) {
+        throw new Error('Arquivo .exe não encontrado na release');
+      }
+      
+      // Verificar se temos API electronAPI para download seguro
+      if (!window.electronAPI || !window.electronAPI.downloadAndInstallUpdate) {
+        // Fallback: usar método do navegador
+        await downloadUpdateBrowser(exeAsset, versaoNova);
+        return;
+      }
+      
+      // Usar API nativa do Electron para download seguro
+      await downloadUpdateSecure(exeAsset, versaoNova);
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar updates:', error);
+      
+      dom.updateStatus.className = 'update-status error';
+      dom.updateStatus.innerHTML = `❌ Erro ao verificar atualizações<br><small>${error.message}</small>`;
+      showToast('❌ Erro ao verificar atualizações', 3000, true);
+      
+      setTimeout(() => {
+        dom.updateStatus.style.display = 'none';
+      }, 5000);
+      
+    } finally {
+      // Restaurar botão
+      setTimeout(() => {
+        dom.checkUpdateBtn.disabled = false;
+        dom.checkUpdateBtn.textContent = '🔄 UPDATE';
+      }, 2000);
+    }
+  }
+
+  // Download e instalação segura via API nativa do Electron
+  async function downloadUpdateSecure(exeAsset, versaoNova) {
+    try {
+      dom.updateStatus.className = 'update-status downloading';
+      dom.updateStatus.innerHTML = `📥 Baixando v${versaoNova} em pasta temporária...<br><small>Instalação automática ativada</small>`;
+      
+      if (dom.progressBar && dom.progressFill) {
+        dom.progressBar.style.display = 'block';
+        dom.progressFill.style.width = '0%';
+      }
+      
+      // Simular progresso durante download
+      const progressInterval = setInterval(() => {
+        const currentWidth = parseFloat(dom.progressFill.style.width) || 0;
+        if (currentWidth < 85) {
+          dom.progressFill.style.width = (currentWidth + Math.random() * 10) + '%';
+        }
+      }, 500);
+      
+      // Usar API do Electron para download seguro
+      const result = await window.electronAPI.downloadAndInstallUpdate({
+        url: exeAsset.browser_download_url,
+        filename: exeAsset.name,
+        version: versaoNova
+      });
+      
+      clearInterval(progressInterval);
+      dom.progressFill.style.width = '100%';
+      
+      if (result.success) {
+        dom.updateStatus.className = 'update-status ready';
+        dom.updateStatus.innerHTML = `🚀 Instalação iniciada automaticamente!<br><small>Arquivo será removido após instalação</small>`;
+        showToast(`🚀 Instalando v${versaoNova} automaticamente...`, 3000);
+        
+        // Avisar que o app será fechado
+        setTimeout(() => {
+          dom.updateStatus.innerHTML = `⚡ Finalizando app para instalar v${versaoNova}...<br><small>Reinicie após a instalação</small>`;
+          showToast('⚡ App será fechado para instalação...', 2000);
+        }, 2000);
+        
+      } else {
+        throw new Error(result.error || 'Falha na instalação automática');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro no download seguro:', error);
+      // Fallback para método do navegador
+      await downloadUpdateBrowser(exeAsset, versaoNova);
+    }
+  }
+
+  // Fallback: download via navegador (método original)
+  async function downloadUpdateBrowser(exeAsset, versaoNova) {
+    dom.updateStatus.className = 'update-status downloading';
+    dom.updateStatus.innerHTML = `📥 Baixando v${versaoNova}...<br><small>Modo compatibilidade ativado</small>`;
+    
+    if (dom.progressBar && dom.progressFill) {
+      dom.progressBar.style.display = 'block';
+      
+      // Simular progresso
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        dom.progressFill.style.width = progress + '%';
+      }, 500);
+      
+      // Baixar arquivo
+      console.log('📥 Download via navegador...');
+      const downloadResponse = await fetch(exeAsset.browser_download_url);
+      
+      if (!downloadResponse.ok) {
+        throw new Error(`Erro no download: ${downloadResponse.status}`);
+      }
+      
+      const blob = await downloadResponse.blob();
+      
+      // Finalizar progresso
+      clearInterval(progressInterval);
+      dom.progressFill.style.width = '100%';
+      
+      // Criar URL para download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = exeAsset.name;
+      
+      // Atualizar status
+      dom.updateStatus.className = 'update-status ready';
+      dom.updateStatus.innerHTML = `✅ Download concluído!<br>🚀 Execute o arquivo baixado para instalar v${versaoNova}`;
+      
+      // Iniciar download automaticamente
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      showToast(`📥 Arquivo v${versaoNova} baixado na pasta Downloads`, 4000);
+      
+      setTimeout(() => {
+        dom.progressBar.style.display = 'none';
+        dom.progressFill.style.width = '0%';
+      }, 3000);
+    }
+  }
+
   // =============================
   // FUNÇÕES DE LIMPEZA
   // =============================
@@ -563,6 +770,17 @@
       console.warn('⚠️ Botão minimizar não encontrado');
     }
 
+    // NOVO: Botão verificar updates
+    if (dom.checkUpdateBtn) {
+      console.log('✅ Configurando botão verificar updates');
+      dom.checkUpdateBtn.addEventListener('click', () => {
+        console.log('🖱️ Clique no botão verificar updates');
+        verificarAtualizacoes();
+      });
+    } else {
+      console.warn('⚠️ Botão verificar updates não encontrado');
+    }
+
     // Atalhos de teclado globais
     document.addEventListener('keydown', (e) => {
       // Ctrl+M para minimizar
@@ -591,6 +809,13 @@
         e.preventDefault();
         console.log('⌨️ Atalho F2 para popup uso contínuo');
         abrirPopupUsoContinuo();
+      }
+
+      // NOVO: F9 para verificar updates
+      if (e.key === 'F9') {
+        e.preventDefault();
+        console.log('⌨️ Atalho F9 para verificar updates');
+        verificarAtualizacoes();
       }
     });
 
@@ -652,6 +877,7 @@
     console.log('   F1 - Testar conexão');
     console.log('   F2 - Abrir popup uso contínuo');
     console.log('   F5 - Limpar cache');
+    console.log('   F9 - Verificar updates');
     console.log('   Ctrl+M - Minimizar janela');
   }
 
@@ -688,7 +914,8 @@
     buscarClientePorCpf,
     buscarProdutoPorEan,
     minimizarJanela,
-    abrirPopupUsoContinuo,  // NOVA FUNÇÃO ADICIONADA
+    abrirPopupUsoContinuo,
+    verificarAtualizacoes,  // NOVA FUNÇÃO ADICIONADA
     dom,
     safeToFixed,
     formatPercentage

@@ -1,26 +1,26 @@
 // Auto-generated build information
-// Generated at: 2025-09-05T01:33:10.474Z
+// Generated at: 2025-09-05T18:26:11.617Z
 
 module.exports = {
   "app": {
     "name": "assistente-balcao",
     "productName": "Filipeta Assistente de Balcão",
-    "version": "1.10.0",
+    "version": "1.10.2",
     "description": "Assistente de balcão em formato filipeta - Versão Unificada"
   },
   "build": {
     "date": "2025-09-05",
-    "timestamp": 1757035989956,
-    "iso": "2025-09-05T01:33:10.474Z",
+    "timestamp": 1757096771210,
+    "iso": "2025-09-05T18:26:11.617Z",
     "year": 2025
   },
   "git": {
     "branch": "main",
-    "commit": "63198f1",
-    "commitLong": "63198f1532bc84d278102f36e1c554083be4128e",
-    "commitDate": "2025-09-04 21:33:09 -0400",
+    "commit": "b2168c4",
+    "commitLong": "b2168c4da179b5c5352b205dc7916222e350311b",
+    "commitDate": "2025-09-05 14:26:11 -0400",
     "author": "barbosaj1983",
-    "status": "clean",
+    "status": "dirty",
     "repository": "https://github.com/barbosaj1983/filipeta.git"
   },
   "system": {
@@ -37,8 +37,8 @@ module.exports = {
   },
   "metadata": {
     "generator": "Filipeta Build Info Generator",
-    "generatedAt": "2025-09-05T01:33:10.474Z",
-    "buildId": "1.10.0-63198f1-mf65v2kk",
+    "generatedAt": "2025-09-05T18:26:11.617Z",
+    "buildId": "1.10.2-b2168c4-mf761toq",
     "environment": "production"
   }
 };

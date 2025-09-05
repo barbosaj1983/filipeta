@@ -9,10 +9,4 @@ npm run dist-win
 
 
 
-****nao usar abaixo***
-
-
-npm run build-info
-
-
-npm run dist
+ https://github.com/barbosaj1983/filipeta/releases

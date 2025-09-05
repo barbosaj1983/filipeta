@@ -25,9 +25,9 @@
     --muted:#9aa6c3;         /* descrição neutra */
 
     /* Acentos funcionais (mapa cerebral) */
-    --blue:#3b82f6;          /* “cognição/novidade” (Recomendados) */
-    --green:#22c55e;         /* “continuidade/reforço” (Mais consumidos) */
-    --violet:#a855f7;        /* “associação/integração” (Vendidos juntos) */
+    --blue:#3b82f6;          /* "cognição/novidade" (Recomendados) */
+    --green:#22c55e;         /* "continuidade/reforço" (Mais consumidos) */
+    --violet:#a855f7;        /* "associação/integração" (Vendidos juntos) */
 
     /* CTA e feedback */
     --cta:#ff5a3d;           /* quente → abordagem/desejo */
@@ -102,7 +102,7 @@
   .card.vendidos-juntos{ border-left:4px solid var(--violet); }
 
   /* ===============================
-     Inputs (foco = “flash” neural)
+     Inputs (foco = "flash" neural)
      =============================== */
   .row{ display:flex; gap:6px; align-items:center; }
   .input-group{ display:flex; gap:6px; flex:1; align-items:center; }
@@ -133,7 +133,7 @@
   .error{ color:var(--danger-1); font-size:12px; margin-top:6px }
 
   /* ===============================
-     Botões (CTA quente; hover = leve “approach”)
+     Botões (CTA quente; hover = leve "approach")
      =============================== */
   .btn{
     padding:10px 14px; border-radius:8px; border:none; cursor:pointer;
@@ -166,6 +166,12 @@
   .btn.minimize{
     width:36px; height:36px; padding:0; font-size:16px; font-weight:900;
     background:linear-gradient(180deg, var(--danger-1), var(--danger-2)); color:#fff;
+  }
+  .btn.update{
+    background:linear-gradient(180deg, var(--violet), #7c3aed);
+    color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.28);
+    font-size:10px; padding:6px 10px; min-height:28px;
+    box-shadow:0 8px 16px rgba(168,85,247,.25), inset 0 1px 0 rgba(255,255,255,.18);
   }
   .btn:disabled{ opacity:.6; cursor:not-allowed; transform:none !important; filter:none !important }
 
@@ -220,6 +226,44 @@
   }
 
   /* ===============================
+     Update Status - NOVO
+     =============================== */
+  .update-status{
+    margin-top:8px; padding:6px 8px; border-radius:6px;
+    font-size:10px; text-align:center; display:none;
+    background:var(--surface); border:1px solid var(--stroke);
+  }
+  .update-status.checking{
+    background:linear-gradient(180deg, rgba(59,130,246,.15), rgba(59,130,246,.08));
+    border-color:rgba(59,130,246,.3); color:var(--blue);
+  }
+  .update-status.available{
+    background:linear-gradient(180deg, rgba(34,197,94,.15), rgba(34,197,94,.08));
+    border-color:rgba(34,197,94,.3); color:var(--green);
+  }
+  .update-status.downloading{
+    background:linear-gradient(180deg, rgba(245,158,11,.15), rgba(245,158,11,.08));
+    border-color:rgba(245,158,11,.3); color:var(--amber-1);
+  }
+  .update-status.ready{
+    background:linear-gradient(180deg, rgba(168,85,247,.15), rgba(168,85,247,.08));
+    border-color:rgba(168,85,247,.3); color:var(--violet);
+  }
+  .update-status.error{
+    background:linear-gradient(180deg, rgba(239,68,68,.15), rgba(239,68,68,.08));
+    border-color:rgba(239,68,68,.3); color:var(--danger-1);
+  }
+
+  .progress-bar{
+    width:100%; height:3px; background:rgba(255,255,255,.1);
+    border-radius:2px; margin-top:4px; overflow:hidden; display:none;
+  }
+  .progress-fill{
+    height:100%; background:linear-gradient(90deg, var(--violet), #c084fc);
+    width:0%; transition:width .3s ease;
+  }
+
+  /* ===============================
      Footer
      =============================== */
   .footer{
@@ -227,6 +271,7 @@
     font-size:10px; color:var(--muted); border-top:1px solid var(--glass-2);
   }
   .footer .build-info{ font-size:9px; opacity:.6; margin-top:2px }
+  .footer .update-section{ margin-top:6px; display:flex; flex-direction:column; gap:4px; align-items:center }
 
   /* ===============================
      Utilitários/estados
@@ -292,10 +337,18 @@
       </div>
     </div>
 
-    <!-- Footer com informações de versão -->
+    <!-- Footer com informações de versão e UPDATE -->
     <div class="footer">
       Filipeta Assistant
       <div class="build-info">Build 20241201 • © 2024</div>
+      <div class="update-section">
+        <button id="check-update-btn" class="btn update" title="Verificar atualizações">🔄 UPDATE</button>
+        <div id="update-status" class="update-status">
+          <div id="progress-bar" class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Toast para notificações -->

@@ -1,11 +1,11 @@
-// main.js - VERSÃO COM SINGLE INSTANCE LOCK + ELECTRON-UPDATER
+// main.js - VERSÃO COM SINGLE INSTANCE LOCK + ELECTRON-UPDATER + DOWNLOAD CORRIGIDO
 const { app, BrowserWindow, globalShortcut, shell, ipcMain } = require('electron');
 const path = require('path');
 const AutoLaunch = require('auto-launch');
 const { autoUpdater } = require('electron-updater');
 
 // Informações de versão
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.10.0';
 const BUILD_DATE = '2025-09-01';
 
 let mainWindow;
@@ -797,43 +797,43 @@ function setupAutoLaunch() {
 // =============================
 
 ipcMain.handle('db-buscar-cliente-cpf', async (event, cpf) => {
-  console.log('🔨 IPC: db-buscar-cliente-cpf', cpf);
+  console.log('📨 IPC: db-buscar-cliente-cpf', cpf);
   return await buscarClientePorCpfMain(cpf);
 });
 
 ipcMain.handle('db-buscar-recomendacoes-cpf', async (event, cpf, limit) => {
-  console.log('🔨 IPC: db-buscar-recomendacoes-cpf', cpf, limit);
+  console.log('📨 IPC: db-buscar-recomendacoes-cpf', cpf, limit);
   return await buscarRecomendacoesCpfMain(cpf, limit);
 });
 
 ipcMain.handle('db-buscar-mais-consumidos', async (event, cpf, limit) => {
-  console.log('🔨 IPC: db-buscar-mais-consumidos', cpf, limit);
+  console.log('📨 IPC: db-buscar-mais-consumidos', cpf, limit);
   return await buscarMaisConsumidosMain(cpf, limit);
 });
 
 ipcMain.handle('db-buscar-produto-ean', async (event, ean) => {
-  console.log('🔨 IPC: db-buscar-produto-ean', ean);
+  console.log('📨 IPC: db-buscar-produto-ean', ean);
   return await buscarProdutoPorEanMain(ean);
 });
 
 ipcMain.handle('db-buscar-vendidos-juntos', async (event, ean, limit) => {
-  console.log('🔨 IPC: db-buscar-vendidos-juntos', ean, limit);
+  console.log('📨 IPC: db-buscar-vendidos-juntos', ean, limit);
   return await buscarVendidosJuntosMain(ean, limit);
 });
 
 ipcMain.handle('db-testar-conexao', async (event) => {
-  console.log('🔨 IPC: db-testar-conexao');
+  console.log('📨 IPC: db-testar-conexao');
   return await testarConexaoMain();
 });
 
 ipcMain.handle('db-limpar-cache', async (event) => {
-  console.log('🔨 IPC: db-limpar-cache');
+  console.log('📨 IPC: db-limpar-cache');
   cache.clear();
   return { success: true };
 });
 
 ipcMain.handle('db-cache-stats', async (event) => {
-  console.log('🔨 IPC: db-cache-stats');
+  console.log('📨 IPC: db-cache-stats');
   return cache.getStats();
 });
 
@@ -842,7 +842,7 @@ ipcMain.handle('db-cache-stats', async (event) => {
 // ========================================
 
 ipcMain.handle('buscar-produtos-uso-continuo', async (event, cpf) => {
-    console.log('🔨 IPC: buscar-produtos-uso-continuo', cpf);
+    console.log('📨 IPC: buscar-produtos-uso-continuo', cpf);
     try {
         return await buscarProdutosUsoContinuoDb(cpf);
     } catch (error) {
@@ -852,7 +852,7 @@ ipcMain.handle('buscar-produtos-uso-continuo', async (event, cpf) => {
 });
 
 ipcMain.handle('abrir-popup-uso-continuo', async (event, cpf) => {
-    console.log('🔨 IPC: abrir-popup-uso-continuo', cpf);
+    console.log('📨 IPC: abrir-popup-uso-continuo', cpf);
     console.log('🔍 RASTREAMENTO: Popup solicitado via IPC manual');
     
     try {
@@ -868,7 +868,7 @@ ipcMain.handle('abrir-popup-uso-continuo', async (event, cpf) => {
 });
 
 ipcMain.handle('get-popup-history', async (event) => {
-    console.log('🔨 IPC: get-popup-history');
+    console.log('📨 IPC: get-popup-history');
     return {
         history: popupOpenHistory,
         currentState: {
@@ -881,7 +881,7 @@ ipcMain.handle('get-popup-history', async (event) => {
 });
 
 ipcMain.handle('fechar-popup-uso-continuo', async () => {
-    console.log('🔨 IPC: fechar-popup-uso-continuo');
+    console.log('📨 IPC: fechar-popup-uso-continuo');
     try {
         if (popupUsoContinuoWindow && !popupUsoContinuoWindow.isDestroyed()) {
             popupUsoContinuoWindow.close();
@@ -902,7 +902,7 @@ ipcMain.handle('fechar-popup-uso-continuo', async () => {
 // ========================================
 
 ipcMain.handle('updater-check-for-updates', async () => {
-    console.log('🔨 IPC: updater-check-for-updates');
+    console.log('📨 IPC: updater-check-for-updates');
     try {
         const result = await autoUpdater.checkForUpdatesAndNotify();
         return { success: true, result };
@@ -913,7 +913,7 @@ ipcMain.handle('updater-check-for-updates', async () => {
 });
 
 ipcMain.handle('updater-download-update', async () => {
-    console.log('🔨 IPC: updater-download-update');
+    console.log('📨 IPC: updater-download-update');
     try {
         await autoUpdater.downloadUpdate();
         return { success: true };
@@ -924,7 +924,7 @@ ipcMain.handle('updater-download-update', async () => {
 });
 
 ipcMain.handle('updater-quit-and-install', async () => {
-    console.log('🔨 IPC: updater-quit-and-install');
+    console.log('📨 IPC: updater-quit-and-install');
     try {
         autoUpdater.quitAndInstall();
         return { success: true };
@@ -935,7 +935,7 @@ ipcMain.handle('updater-quit-and-install', async () => {
 });
 
 ipcMain.handle('updater-get-version', async () => {
-    console.log('🔨 IPC: updater-get-version');
+    console.log('📨 IPC: updater-get-version');
     return {
         currentVersion: app.getVersion(),
         appVersion: APP_VERSION,
@@ -943,12 +943,274 @@ ipcMain.handle('updater-get-version', async () => {
     };
 });
 
+// ========================================
+// DOWNLOAD E INSTALAÇÃO SEGURA - VERSÃO FINAL ROBUSTA
+// ========================================
+
+ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
+    console.log('📨 IPC: downloadAndInstallUpdate', updateInfo);
+    
+    const https = require('https');
+    const fs = require('fs');
+    const os = require('os');
+    const { spawn } = require('child_process');
+    const crypto = require('crypto');
+    
+    // Gerar pasta temporária única para evitar conflitos
+    const timestamp = Date.now();
+    const randomId = crypto.randomBytes(4).toString('hex');
+    const tempDir = path.join(os.tmpdir(), `filipeta-update-${timestamp}-${randomId}`);
+    const tempFilePath = path.join(tempDir, updateInfo.filename);
+    
+    try {
+        console.log(`📁 Criando pasta temporária: ${tempDir}`);
+        
+        // Criar pasta temporária com permissões explícitas
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true, mode: 0o755 });
+            console.log('✅ Pasta temporária criada');
+        }
+        
+        console.log(`📥 Baixando para: ${tempFilePath}`);
+        
+        // Função robusta para download com redirects
+        const downloadFile = async (url, maxRedirects = 5) => {
+            return new Promise((resolve, reject) => {
+                if (maxRedirects === 0) {
+                    reject(new Error('Muitos redirects'));
+                    return;
+                }
+                
+                console.log(`📡 Requisitando: ${url}`);
+                
+                const request = https.get(url, (response) => {
+                    const { statusCode, headers } = response;
+                    console.log(`📊 Status: ${statusCode}`);
+                    
+                    // Tratar redirects
+                    if (statusCode >= 300 && statusCode < 400 && headers.location) {
+                        console.log(`🔄 Redirect para: ${headers.location}`);
+                        response.resume(); // Consumir response
+                        
+                        // Seguir redirect
+                        downloadFile(headers.location, maxRedirects - 1)
+                            .then(resolve)
+                            .catch(reject);
+                        return;
+                    }
+                    
+                    // Verificar sucesso
+                    if (statusCode !== 200) {
+                        response.resume();
+                        reject(new Error(`HTTP ${statusCode}: ${response.statusMessage}`));
+                        return;
+                    }
+                    
+                    // Preparar escrita do arquivo
+                    console.log(`📦 Tamanho esperado: ${headers['content-length']} bytes`);
+                    
+                    let file;
+                    try {
+                        file = fs.createWriteStream(tempFilePath, { flags: 'w', mode: 0o644 });
+                    } catch (fsError) {
+                        response.resume();
+                        reject(new Error(`Erro ao criar arquivo: ${fsError.message}`));
+                        return;
+                    }
+                    
+                    let downloadedBytes = 0;
+                    const totalBytes = parseInt(headers['content-length']) || 0;
+                    
+                    response.on('data', (chunk) => {
+                        downloadedBytes += chunk.length;
+                        if (totalBytes > 0) {
+                            const progress = Math.round((downloadedBytes / totalBytes) * 100);
+                            if (progress % 10 === 0) { // Log a cada 10%
+                                console.log(`📥 Progresso: ${progress}% (${downloadedBytes}/${totalBytes} bytes)`);
+                            }
+                        }
+                    });
+                    
+                    response.pipe(file);
+                    
+                    file.on('finish', () => {
+                        file.close();
+                        console.log(`✅ Download concluído: ${downloadedBytes} bytes`);
+                        resolve(downloadedBytes);
+                    });
+                    
+                    file.on('error', (err) => {
+                        console.error('❌ Erro ao escrever arquivo:', err);
+                        
+                        try {
+                            file.close();
+                            if (fs.existsSync(tempFilePath)) {
+                                fs.unlinkSync(tempFilePath);
+                            }
+                        } catch (cleanupErr) {
+                            console.warn('⚠️ Erro na limpeza:', cleanupErr.message);
+                        }
+                        
+                        reject(new Error(`Erro de escrita: ${err.message}`));
+                    });
+                    
+                    response.on('error', (err) => {
+                        console.error('❌ Erro no download:', err);
+                        
+                        try {
+                            file.close();
+                            if (fs.existsSync(tempFilePath)) {
+                                fs.unlinkSync(tempFilePath);
+                            }
+                        } catch (cleanupErr) {
+                            console.warn('⚠️ Erro na limpeza:', cleanupErr.message);
+                        }
+                        
+                        reject(err);
+                    });
+                    
+                }).on('error', (err) => {
+                    console.error('❌ Erro na requisição HTTPS:', err);
+                    reject(err);
+                });
+                
+                // Timeout de 30 segundos
+                request.setTimeout(30000, () => {
+                    request.destroy();
+                    reject(new Error('Timeout na requisição'));
+                });
+            });
+        };
+        
+        // Executar download
+        const downloadedBytes = await downloadFile(updateInfo.url);
+        
+        // Validar arquivo baixado
+        if (!fs.existsSync(tempFilePath)) {
+            throw new Error('Arquivo não foi criado');
+        }
+        
+        const fileStats = fs.statSync(tempFilePath);
+        console.log(`📊 Arquivo criado: ${fileStats.size} bytes`);
+        
+        if (fileStats.size < 512 * 1024) { // Menor que 512KB é suspeito
+            throw new Error(`Arquivo muito pequeno: ${fileStats.size} bytes`);
+        }
+        
+        if (fileStats.size !== downloadedBytes) {
+            console.warn(`⚠️ Tamanhos diferentes: arquivo=${fileStats.size}, download=${downloadedBytes}`);
+        }
+        
+        console.log(`🚀 Executando instalação: ${tempFilePath}`);
+        
+        // Executar instalação silenciosa
+        const installerProcess = spawn(tempFilePath, ['/S'], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true
+        });
+        
+        installerProcess.unref();
+        console.log(`🔧 Processo de instalação iniciado (PID: ${installerProcess.pid})`);
+        
+        // Função de limpeza assíncrona
+        const scheduleCleanup = () => {
+            setTimeout(async () => {
+                let attempts = 0;
+                const maxAttempts = 5;
+                
+                const cleanup = async () => {
+                    attempts++;
+                    console.log(`🧹 Tentativa de limpeza ${attempts}/${maxAttempts}`);
+                    
+                    try {
+                        // Remover arquivo
+                        if (fs.existsSync(tempFilePath)) {
+                            fs.unlinkSync(tempFilePath);
+                            console.log('✅ Arquivo temporário removido');
+                        }
+                        
+                        // Remover pasta
+                        if (fs.existsSync(tempDir)) {
+                            const files = fs.readdirSync(tempDir);
+                            if (files.length === 0) {
+                                fs.rmdirSync(tempDir);
+                                console.log('✅ Pasta temporária removida');
+                            } else {
+                                console.log(`⚠️ Pasta não vazia: ${files.length} arquivos`);
+                                if (attempts < maxAttempts) {
+                                    setTimeout(cleanup, 15000); // Tentar novamente em 15s
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.log(`⚠️ Limpeza falhou (tentativa ${attempts}): ${err.message}`);
+                        if (attempts < maxAttempts) {
+                            setTimeout(cleanup, 15000);
+                        } else {
+                            console.log('⚠️ Limpeza abandonada, arquivos podem permanecer');
+                        }
+                    }
+                };
+                
+                await cleanup();
+            }, 45000); // Aguardar 45 segundos antes da primeira tentativa
+        };
+        
+        scheduleCleanup();
+        
+        // Fechar app após 4 segundos
+        setTimeout(() => {
+            console.log('⚡ Fechando aplicativo para permitir instalação...');
+            app.quit();
+        }, 4000);
+        
+        return { 
+            success: true, 
+            message: 'Instalação iniciada com sucesso',
+            fileSize: fileStats.size,
+            tempPath: tempFilePath
+        };
+        
+    } catch (error) {
+        console.error('❌ Erro crítico no download/instalação:', error);
+        
+        // Limpeza de emergência
+        try {
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+                console.log('🗑️ Arquivo de erro removido');
+            }
+            
+            if (fs.existsSync(tempDir)) {
+                try {
+                    const files = fs.readdirSync(tempDir);
+                    if (files.length === 0) {
+                        fs.rmdirSync(tempDir);
+                        console.log('🗑️ Pasta de erro removida');
+                    }
+                } catch (dirErr) {
+                    console.log('⚠️ Pasta em uso, será removida posteriormente');
+                }
+            }
+        } catch (cleanupError) {
+            console.warn('⚠️ Erro na limpeza de emergência:', cleanupError.message);
+        }
+        
+        return { 
+            success: false, 
+            error: `Falha no download: ${error.message}`,
+            details: error.code || 'UNKNOWN_ERROR'
+        };
+    }
+});
+
 // =============================
 // HANDLERS IPC - JANELA
 // =============================
 
 ipcMain.handle('minimize-window', () => {
-  console.log('🔨 IPC: minimize-window recebido');
+  console.log('📨 IPC: minimize-window recebido');
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.minimize();
@@ -965,7 +1227,7 @@ ipcMain.handle('minimize-window', () => {
 });
 
 ipcMain.handle('get-app-info', () => {
-  console.log('🔨 IPC: get-app-info recebido');
+  console.log('📨 IPC: get-app-info recebido');
   return {
     version: APP_VERSION,
     buildDate: BUILD_DATE,
@@ -977,7 +1239,7 @@ ipcMain.handle('get-app-info', () => {
 });
 
 ipcMain.handle('restore-window', () => {
-  console.log('🔨 IPC: restore-window recebido');
+  console.log('📨 IPC: restore-window recebido');
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) {
@@ -1051,7 +1313,7 @@ app.whenReady().then(async () => {
   console.log('✅ Filipeta Assistente iniciado com sucesso');
   console.log('✅ Single instance lock ativo - apenas uma instância permitida');
   console.log('✅ Popup configurado para abertura APENAS manual');
-  console.log('✅ Electron-updater configurado para GitHub Releases');
+  console.log('✅ Sistema de updates automático configurado para GitHub Releases');
 });
 
 app.on('activate', () => {
