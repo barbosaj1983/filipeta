@@ -1,0 +1,699 @@
+// renderer.js - VERSÃO CORRIGIDA COM POPUP USO CONTÍNUO
+(function () {
+  'use strict';
+
+  console.log('🚀 Inicializando renderer.js');
+
+  // =============================
+  // UTILITÁRIOS
+  // =============================
+  
+  const $ = (sel) => document.querySelector(sel);
+  const setText = (sel, text) => {
+    const el = $(sel);
+    if (el) el.textContent = text != null ? String(text) : '';
+  };
+  const onlyDigits = (s = '') => String(s).replace(/\D/g, '');
+
+  // Elementos DOM
+  const dom = {
+    inputCpf: $('#cpf'),
+    inputEan: $('#ean'),
+    nomeCliente: $('#cliente-nome'),
+    descProduto: $('#produto-desc'),
+    recomendados: $('#recomendados'),
+    maisConsumidos: $('#mais-consumidos'),
+    vendidosJuntos: $('#vendidos-juntos'),
+    btnClearCpf: $('#btn-clear-cpf'),
+    btnClearEan: $('#btn-clear-ean'),
+    minimizeBtn: $('#minimize-btn'),
+    toast: $('#toast')
+  };
+
+  console.log('📋 Elementos DOM encontrados:', {
+    inputCpf: !!dom.inputCpf,
+    inputEan: !!dom.inputEan,
+    minimizeBtn: !!dom.minimizeBtn,
+    btnClearCpf: !!dom.btnClearCpf,
+    btnClearEan: !!dom.btnClearEan
+  });
+
+  // =============================
+  // SISTEMA DE TOAST
+  // =============================
+  
+  function showToast(message, duration = 2000, isError = false) {
+    console.log('📢 Toast:', message);
+    if (!dom.toast) return;
+    
+    dom.toast.textContent = message;
+    dom.toast.className = isError ? 'toast error' : 'toast';
+    dom.toast.classList.add('show');
+    
+    setTimeout(() => {
+      dom.toast.classList.remove('show');
+    }, duration);
+  }
+
+  // =============================
+  // SISTEMA DE CLIPBOARD
+  // =============================
+  
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback para contextos não seguros
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      showToast('✅ Copiado!');
+    } catch (err) {
+      console.error('Erro ao copiar:', err);
+      showToast('❌ Erro ao copiar', 2000, true);
+    }
+  }
+
+  // =============================
+  // FORMATAÇÃO SEGURA DE NÚMEROS
+  // =============================
+  
+  function safeToFixed(value, decimals = 2) {
+    // Converte para number e trata casos problemáticos
+    const num = parseFloat(value);
+    if (isNaN(num) || num === null || num === undefined) {
+      return '0.00';
+    }
+    return num.toFixed(decimals);
+  }
+
+  function formatPercentage(value) {
+    const num = parseFloat(value);
+    if (isNaN(num) || num === null || num === undefined) {
+      return '0%';
+    }
+    return Math.round(num * 100) + '%';
+  }
+
+  // =============================
+  // RENDERIZAÇÃO DE LISTAS
+  // =============================
+  
+  function renderList(container, items, emptyMsg = 'Sem itens') {
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (!items || !items.length) {
+      container.innerHTML = `<div class="empty">${emptyMsg}</div>`;
+      return;
+    }
+    
+    for (const item of items) {
+      const row = document.createElement('div');
+      row.className = 'item';
+      
+      const ean = item.ean || '';
+      const nome = item.nome || 'Produto sem descrição';
+      const extra = item.total_de_compras ? ` (x${item.total_de_compras})` : '';
+      
+      // Container do conteúdo principal
+      const itemContent = document.createElement('div');
+      itemContent.className = 'item-content';
+      
+      // EAN (clicável para copiar)
+      if (ean) {
+        const eanSpan = document.createElement('span');
+        eanSpan.className = 'item-ean';
+        eanSpan.textContent = ean;
+        eanSpan.title = 'Clique para copiar o EAN';
+        eanSpan.addEventListener('click', (e) => {
+          e.stopPropagation();
+          copyToClipboard(ean);
+        });
+        itemContent.appendChild(eanSpan);
+      }
+      
+      // Nome/Descrição (clicável para copiar)
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'item-name';
+      nameSpan.textContent = nome + extra;
+      nameSpan.title = 'Clique para copiar a descrição';
+      nameSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyToClipboard(nome);
+      });
+      itemContent.appendChild(nameSpan);
+      
+      row.appendChild(itemContent);
+      
+      // Tag com lift/confidence se disponível - VERSÃO CORRIGIDA
+      if (item.lift !== undefined && item.confidence !== undefined) {
+        try {
+          const liftNum = parseFloat(item.lift);
+          const confNum = parseFloat(item.confidence);
+          
+          if (!isNaN(liftNum) && !isNaN(confNum) && (liftNum > 0 || confNum > 0)) {
+            const tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.textContent = formatPercentage(liftNum);
+            tag.title = `Lift: ${safeToFixed(liftNum)}, Confidence: ${safeToFixed(confNum)}`;
+            row.appendChild(tag);
+          }
+        } catch (error) {
+          console.warn('⚠️ Erro ao processar lift/confidence:', error);
+          // Não adiciona tag se der erro
+        }
+      }
+      
+      container.appendChild(row);
+    }
+  }
+
+  // =============================
+  // FUNÇÕES DE BUSCA
+  // =============================
+  
+  async function buscarClientePorCpf(cpfInput) {
+    console.log('🔍 Buscando cliente por CPF:', cpfInput);
+    const cpf = onlyDigits(cpfInput);
+    if (!cpf) {
+      setText('#cliente-nome', '');
+      renderList(dom.recomendados, [], 'Sem recomendações');
+      renderList(dom.maisConsumidos, [], 'Sem dados');
+      return;
+    }
+
+    try {
+      showToast('🔄 Buscando cliente...', 1000);
+
+      // Verificar se API está disponível
+      if (!window.DB) {
+        throw new Error('API DB não disponível');
+      }
+
+      // Buscar dados do cliente
+      const cliente = await window.DB.buscarClientePorCpf(cpf);
+      
+      if (!cliente.found) {
+        setText('#cliente-nome', 'Cliente não encontrado');
+        renderList(dom.recomendados, [], 'Cliente não encontrado');
+        renderList(dom.maisConsumidos, [], 'Cliente não encontrado');
+        showToast('⚠️ Cliente não encontrado', 2000, true);
+        return;
+      }
+
+      setText('#cliente-nome', cliente.nome || 'Cliente');
+
+      // Buscar recomendações em paralelo
+      const [recomendacoes, maisConsumidos] = await Promise.all([
+        window.DB.buscarRecomendacoesCpf(cpf, 6),
+        window.DB.buscarMaisConsumidos(cpf, 6)
+      ]);
+
+      // Renderizar listas
+      renderList(dom.recomendados, recomendacoes, 'Sem recomendações');
+      renderList(dom.maisConsumidos, maisConsumidos, 'Sem dados de consumo');
+
+      showToast('✅ Cliente encontrado!');
+      console.log('✅ Cliente encontrado:', {
+        nome: cliente.nome,
+        recomendacoes: recomendacoes.length,
+        maisConsumidos: maisConsumidos.length
+      });
+
+      // ========================================
+      // NOVA FUNCIONALIDADE: POPUP DE USO CONTÍNUO
+      // ========================================
+      
+      // Tentar abrir popup de uso contínuo após encontrar o cliente
+      // Executar com delay para não interferir na busca principal
+      setTimeout(async () => {
+        try {
+          if (window.electronAPI && window.electronAPI.abrirPopupUsoContinuo) {
+            console.log('🪟 Tentando abrir popup de uso contínuo para CPF:', cpf);
+            const resultado = await window.electronAPI.abrirPopupUsoContinuo(cpf);
+            
+            if (resultado.success) {
+              console.log('✅ Popup de uso contínuo aberto com sucesso');
+            } else {
+              console.log('ℹ️ Popup não aberto - sem produtos de uso contínuo para este cliente');
+            }
+          } else {
+            console.warn('⚠️ API de popup não disponível');
+          }
+        } catch (error) {
+          console.error('❌ Erro ao abrir popup de uso contínuo:', error);
+          // Não mostrar toast de erro para não incomodar o usuário
+          // O popup é uma funcionalidade adicional, não crítica
+        }
+      }, 800); // Delay de 800ms para garantir que a busca principal termine
+
+    } catch (error) {
+      console.error('❌ Erro ao buscar cliente:', error);
+      setText('#cliente-nome', 'Erro ao buscar cliente');
+      renderList(dom.recomendados, [], 'Erro na consulta');
+      renderList(dom.maisConsumidos, [], 'Erro na consulta');
+      showToast('❌ Erro ao buscar cliente', 3000, true);
+    }
+  }
+
+  async function buscarProdutoPorEan(eanInput) {
+    console.log('🔍 Buscando produto por EAN:', eanInput);
+    const ean = onlyDigits(String(eanInput || ''));
+    
+    if (!ean || ean.length < 4) {
+      setText('#produto-desc', '');
+      renderList(dom.vendidosJuntos, [], 'Sem relacionados');
+      return;
+    }
+
+    try {
+      showToast('🔄 Buscando produto...', 1000);
+
+      // Verificar se API está disponível
+      if (!window.DB) {
+        throw new Error('API DB não disponível');
+      }
+
+      // Buscar produto e relacionados em paralelo
+      const [produto, vendidosJuntos] = await Promise.all([
+        window.DB.buscarProdutoPorEan(ean),
+        window.DB.buscarVendidosJuntos(ean, 6)
+      ]);
+
+      // Atualizar descrição do produto
+      setText('#produto-desc', produto.nome || 'Produto sem descrição');
+
+      // Renderizar produtos vendidos juntos
+      renderList(dom.vendidosJuntos, vendidosJuntos, 'Sem produtos relacionados');
+
+      // Toast informativo
+      if (produto.origem === 'nao_encontrado') {
+        showToast('⚠️ Produto não encontrado', 2000, true);
+      } else {
+        showToast('✅ Produto encontrado!');
+      }
+
+      console.log('🔍 Produto encontrado:', {
+        ean: produto.ean,
+        nome: produto.nome,
+        origem: produto.origem,
+        vendidosJuntos: vendidosJuntos.length
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao buscar produto:', error);
+      setText('#produto-desc', 'Erro na consulta');
+      renderList(dom.vendidosJuntos, [], 'Erro na consulta');
+      showToast('❌ Erro ao buscar produto', 3000, true);
+    }
+  }
+
+  // ========================================
+  // NOVA FUNCIONALIDADE: POPUP USO CONTÍNUO MANUAL
+  // ========================================
+
+  // Função para abrir popup de uso contínuo manualmente
+  async function abrirPopupUsoContinuo(cpf) {
+    try {
+      if (!cpf) {
+        const cpfInput = dom.inputCpf?.value;
+        if (!cpfInput) {
+          showToast('⚠️ Digite um CPF primeiro', 2000, true);
+          return;
+        }
+        cpf = onlyDigits(cpfInput);
+      }
+
+      if (window.electronAPI && window.electronAPI.abrirPopupUsoContinuo) {
+        showToast('🔄 Verificando uso contínuo...', 1000);
+        
+        const resultado = await window.electronAPI.abrirPopupUsoContinuo(cpf);
+        
+        if (resultado.success) {
+          showToast('✅ Popup de uso contínuo aberto!');
+        } else {
+          showToast('ℹ️ Nenhum produto de uso contínuo encontrado para este cliente', 3000);
+        }
+      } else {
+        showToast('❌ Funcionalidade não disponível', 2000, true);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao abrir popup manualmente:', error);
+      showToast('❌ Erro ao carregar dados de uso contínuo', 3000, true);
+    }
+  }
+
+  // =============================
+  // FUNÇÕES DE LIMPEZA
+  // =============================
+  
+  function limparCpf() {
+    console.log('🧹 Limpando CPF');
+    if (dom.inputCpf) {
+      dom.inputCpf.value = '';
+      dom.inputCpf.focus();
+    }
+    setText('#cliente-nome', '');
+    renderList(dom.recomendados, [], 'Sem recomendações');
+    renderList(dom.maisConsumidos, [], 'Sem dados');
+    showToast('🧹 CPF limpo');
+  }
+
+  function limparEan() {
+    console.log('🧹 Limpando EAN');
+    if (dom.inputEan) {
+      dom.inputEan.value = '';
+      dom.inputEan.focus();
+    }
+    setText('#produto-desc', '');
+    renderList(dom.vendidosJuntos, [], 'Sem relacionados');
+    showToast('🧹 EAN limpo');
+  }
+
+  // =============================
+  // FUNÇÃO MINIMIZAR
+  // =============================
+  
+  async function minimizarJanela() {
+    console.log('📽 Tentando minimizar janela');
+    try {
+      if (window.electronAPI && window.electronAPI.minimizeWindow) {
+        const result = await window.electronAPI.minimizeWindow();
+        if (result.success) {
+          console.log('✅ Janela minimizada com sucesso');
+        } else {
+          console.error('❌ Falha ao minimizar:', result.error);
+          showToast('❌ Erro ao minimizar', 2000, true);
+        }
+      } else {
+        console.warn('⚠️ electronAPI não disponível');
+        showToast('⚠️ Função minimizar não disponível', 2000, true);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao minimizar:', error);
+      showToast('❌ Erro ao minimizar janela', 2000, true);
+    }
+  }
+
+  // =============================
+  // FUNÇÕES UTILITÁRIAS
+  // =============================
+  
+  async function testarConexao() {
+    try {
+      showToast('🔄 Testando conexão...', 1000);
+      if (!window.DB) {
+        throw new Error('API DB não disponível');
+      }
+      
+      const resultado = await window.DB.testarConexao();
+      
+      if (resultado.success) {
+        showToast('✅ Conexão OK com Neon', 2000);
+        console.log('✅ Teste de conexão bem-sucedido');
+      } else {
+        showToast('❌ Falha na conexão: ' + resultado.message, 3000, true);
+        console.error('❌ Teste de conexão falhou:', resultado.message);
+      }
+    } catch (error) {
+      console.error('❌ Erro no teste de conexão:', error);
+      showToast('❌ Erro no teste de conexão', 3000, true);
+    }
+  }
+
+  async function limparCache() {
+    try {
+      if (!window.DB) {
+        throw new Error('API DB não disponível');
+      }
+      await window.DB.limparCache();
+      showToast('🗑️ Cache limpo!', 2000);
+      console.log('🗑️ Cache limpo com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao limpar cache:', error);
+      showToast('❌ Erro ao limpar cache', 2000, true);
+    }
+  }
+
+  // =============================
+  // EVENTOS E BINDINGS
+  // =============================
+  
+  function bindEventListeners() {
+    console.log('🔗 Configurando event listeners');
+
+    // CPF - eventos de busca
+    if (dom.inputCpf) {
+      console.log('✅ Configurando eventos do input CPF');
+      
+      // Enter para buscar
+      dom.inputCpf.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          buscarClientePorCpf(dom.inputCpf.value);
+        }
+      });
+
+      // Blur para buscar (se tiver conteúdo)
+      dom.inputCpf.addEventListener('blur', () => {
+        const valor = dom.inputCpf.value;
+        if (valor && onlyDigits(valor).length >= 11) {
+          buscarClientePorCpf(valor);
+        }
+      });
+    } else {
+      console.warn('⚠️ Input CPF não encontrado');
+    }
+
+    // EAN - eventos de busca
+    if (dom.inputEan) {
+      console.log('✅ Configurando eventos do input EAN');
+      
+      // Enter para buscar
+      dom.inputEan.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          buscarProdutoPorEan(dom.inputEan.value);
+        }
+      });
+
+      // Blur para buscar (se tiver conteúdo)
+      dom.inputEan.addEventListener('blur', () => {
+        const valor = dom.inputEan.value;
+        if (valor && onlyDigits(valor).length >= 4) {
+          buscarProdutoPorEan(valor);
+        }
+      });
+
+      // Input para busca automática com EAN completo
+      dom.inputEan.addEventListener('input', () => {
+        const valor = dom.inputEan.value;
+        const digitos = onlyDigits(valor);
+        // Busca automática para códigos com 13 dígitos (EAN-13)
+        if (digitos.length >= 13) {
+          buscarProdutoPorEan(valor);
+        }
+      });
+    } else {
+      console.warn('⚠️ Input EAN não encontrado');
+    }
+
+    // Botões de busca
+    const btnBuscarCpf = $('#btn-buscar-cpf');
+    if (btnBuscarCpf) {
+      console.log('✅ Configurando botão buscar CPF');
+      btnBuscarCpf.addEventListener('click', () => {
+        console.log('🖱️ Clique no botão buscar CPF');
+        buscarClientePorCpf(dom.inputCpf?.value || '');
+      });
+    } else {
+      console.warn('⚠️ Botão buscar CPF não encontrado');
+    }
+
+    const btnOkEan = $('#btn-ok-ean');
+    if (btnOkEan) {
+      console.log('✅ Configurando botão OK EAN');
+      btnOkEan.addEventListener('click', () => {
+        console.log('🖱️ Clique no botão OK EAN');
+        buscarProdutoPorEan(dom.inputEan?.value || '');
+      });
+    } else {
+      console.warn('⚠️ Botão OK EAN não encontrado');
+    }
+
+    // Botões de limpeza
+    if (dom.btnClearCpf) {
+      console.log('✅ Configurando botão limpar CPF');
+      dom.btnClearCpf.addEventListener('click', () => {
+        console.log('🖱️ Clique no botão limpar CPF');
+        limparCpf();
+      });
+    } else {
+      console.warn('⚠️ Botão limpar CPF não encontrado');
+    }
+
+    if (dom.btnClearEan) {
+      console.log('✅ Configurando botão limpar EAN');
+      dom.btnClearEan.addEventListener('click', () => {
+        console.log('🖱️ Clique no botão limpar EAN');
+        limparEan();
+      });
+    } else {
+      console.warn('⚠️ Botão limpar EAN não encontrado');
+    }
+
+    // Botão minimizar
+    if (dom.minimizeBtn) {
+      console.log('✅ Configurando botão minimizar');
+      dom.minimizeBtn.addEventListener('click', () => {
+        console.log('🖱️ Clique no botão minimizar');
+        minimizarJanela();
+      });
+    } else {
+      console.warn('⚠️ Botão minimizar não encontrado');
+    }
+
+    // Atalhos de teclado globais
+    document.addEventListener('keydown', (e) => {
+      // Ctrl+M para minimizar
+      if (e.ctrlKey && e.key === 'm') {
+        e.preventDefault();
+        console.log('⌨️ Atalho Ctrl+M para minimizar');
+        minimizarJanela();
+      }
+      
+      // F1 para testar conexão
+      if (e.key === 'F1') {
+        e.preventDefault();
+        console.log('⌨️ Atalho F1 para testar conexão');
+        testarConexao();
+      }
+      
+      // F5 para limpar cache
+      if (e.key === 'F5') {
+        e.preventDefault();
+        console.log('⌨️ Atalho F5 para limpar cache');
+        limparCache();
+      }
+
+      // F2 para abrir popup de uso contínuo manualmente
+      if (e.key === 'F2') {
+        e.preventDefault();
+        console.log('⌨️ Atalho F2 para popup uso contínuo');
+        abrirPopupUsoContinuo();
+      }
+    });
+
+    console.log('✅ Todos os event listeners configurados');
+  }
+
+  // =============================
+  // INICIALIZAÇÃO
+  // =============================
+  
+  function inicializar() {
+    console.log('🚀 Inicializando Filipeta Assistente de Balcão');
+    
+    // Verificar se APIs estão disponíveis
+    if (!window.DB) {
+      console.error('❌ API DB não disponível');
+      showToast('❌ Erro: API DB não disponível', 5000, true);
+      return;
+    } else {
+      console.log('✅ API DB disponível');
+    }
+
+    if (!window.electronAPI) {
+      console.warn('⚠️ electronAPI não disponível - botão minimizar pode não funcionar');
+    } else {
+      console.log('✅ electronAPI disponível');
+      
+      // Verificar se APIs do popup estão disponíveis
+      if (window.electronAPI.abrirPopupUsoContinuo) {
+        console.log('✅ API popup de uso contínuo disponível');
+      } else {
+        console.warn('⚠️ API popup de uso contínuo não disponível');
+      }
+    }
+
+    // Configurar eventos
+    bindEventListeners();
+
+    // Testar conexão inicial
+    setTimeout(() => {
+      console.log('🔄 Testando conexão inicial');
+      testarConexao();
+    }, 1000);
+
+    // Log de configuração
+    if (window.APP_CONFIG) {
+      console.log('⚙️ Configuração:', window.APP_CONFIG);
+    }
+
+    // Focar no input CPF
+    if (dom.inputCpf) {
+      dom.inputCpf.focus();
+      console.log('🎯 Foco definido no input CPF');
+    }
+
+    showToast('🚀 Sistema inicializado!', 2000);
+    console.log('✅ Filipeta inicializado com sucesso');
+    console.log('📋 Atalhos disponíveis:');
+    console.log('   F1 - Testar conexão');
+    console.log('   F2 - Abrir popup uso contínuo');
+    console.log('   F5 - Limpar cache');
+    console.log('   Ctrl+M - Minimizar janela');
+  }
+
+  // =============================
+  // TRATAMENTO DE ERROS GLOBAIS
+  // =============================
+  
+  window.addEventListener('error', (event) => {
+    console.error('❌ Erro global:', event.error);
+    showToast('❌ Erro inesperado', 3000, true);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('❌ Promise rejeitada:', event.reason);
+    showToast('❌ Erro de conexão', 3000, true);
+  });
+
+  // =============================
+  // INICIALIZAÇÃO QUANDO DOM PRONTO
+  // =============================
+  
+  if (document.readyState === 'loading') {
+    console.log('🔄 DOM ainda carregando, aguardando DOMContentLoaded');
+    document.addEventListener('DOMContentLoaded', inicializar);
+  } else {
+    console.log('🔄 DOM já carregado, inicializando imediatamente');
+    inicializar();
+  }
+
+  // Expor funções para debug no console
+  window.filipetaDebug = {
+    testarConexao,
+    limparCache,
+    buscarClientePorCpf,
+    buscarProdutoPorEan,
+    minimizarJanela,
+    abrirPopupUsoContinuo,  // NOVA FUNÇÃO ADICIONADA
+    dom,
+    safeToFixed,
+    formatPercentage
+  };
+
+  console.log('🛠️ Debug tools disponíveis em window.filipetaDebug');
+
+})();

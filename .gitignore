@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build outputs 
+dist/
+build/
+out/
+
+# Backups
+Backup/
+backup/
+*.backup
+*.bak
+*.rar
+*.zip
+*.7z
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Large files
+*.exe
+*.dmg
+*.app

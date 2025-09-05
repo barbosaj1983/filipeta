@@ -1,0 +1,66 @@
+name: Build and Release Filipeta
+
+on:
+  push:
+    tags:
+      - 'v*' # Dispara quando criar uma tag como v1.10.1, v1.11.0, etc.
+
+jobs:
+  release:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run build
+        run: npm run dist
+        
+      - name: Get package version
+        id: package-version
+        run: |
+          $version = node -p "require('./package.json').version"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+        shell: powershell
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Filipeta Assistente v${{ steps.package-version.outputs.version }}"
+          body: |
+            ## Filipeta Assistente v${{ steps.package-version.outputs.version }}
+            
+            ### Novidades desta versão
+            - Atualização automática via sistema de releases
+            - Melhorias de performance e estabilidade
+            - Correções de bugs reportados
+            
+            ### Como instalar
+            1. Baixe o arquivo **Filipeta Assistente de Balcão-v${{ steps.package-version.outputs.version }}-Setup.exe**
+            2. Execute como administrador
+            3. Siga o assistente de instalação
+            
+            ### Atualizações automáticas
+            A partir da versão 1.10.0, o aplicativo verifica e instala atualizações automaticamente.
+            
+            ---
+            **Build:** ${{ github.sha }}
+            **Data:** ${{ github.event.head_commit.timestamp }}
+            
+          files: |
+            dist/*.exe
+            dist/latest.yml
+            dist/*.blockmap
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,162 @@
+{
+  "name": "assistente-balcao",
+  "version": "1.10.0",
+  "description": "Assistente de balcão em formato filipeta - Versão Unificada",
+  "main": "main.js",
+  "author": "Filipeta Team",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "npm run version && electron-builder",
+    "dist-win": "npm run version && electron-builder",
+    "dist-mac": "npm run version && electron-builder --mac",
+    "dist-linux": "npm run version && electron-builder --linux",
+    "version-bump": "npm version patch",
+    "version-minor": "npm version minor",
+    "version-major": "npm version major",
+    "build-info": "node scripts/build-info.js",
+    "auto-version": "node scripts/auto-version.js",
+    "generate-icons": "node scripts/generate-icons.js",
+    "update-html-version": "node scripts/update-html-version.js",
+    "version": "npm run auto-version && npm run build-info && npm run update-html-version",
+    "prepack": "npm run version",
+    "release": "standard-version",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major",
+    "release:patch": "standard-version --release-as patch",
+    "setup": "node scripts/setup.js",
+    "test-connection": "node test-neon-connection.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
+    "auto-launch": "^5.0.5",
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.0.0",
+    "semver": "^7.5.4",
+    "standard-version": "^9.5.0",
+    "conventional-changelog-cli": "^4.1.0",
+    "sharp": "^0.33.0"
+  },
+  "build": {
+    "appId": "com.filipeta.assistentebalcao",
+    "productName": "Filipeta Assistente de Balcão",
+    "copyright": "Copyright © 2025 Filipeta Team",
+    "artifactName": "${productName}-v${version}-Setup.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!scripts/",
+      "!server/",
+      "!assets/source/",
+      "!.env*",
+      "!README.md",
+      "!test-*.js",
+      "!setup.js",
+      "!.versionrc.json",
+      "!CHANGELOG.md",
+      "!package.json.backup"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/",
+        "to": "assets/",
+        "filter": [
+          "**/*",
+          "!source/**/*"
+        ]
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "barbosaj1983",
+      "repo": "filipeta-assistente-balcao"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "perMachine": true,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Filipeta - Assistente de Balcão"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.business",
+      "artifactName": "${productName}-${version}.${ext}"
+    },
+    "dmg": {
+      "background": "assets/dmg-background.png",
+      "icon": "assets/icon.icns",
+      "iconSize": 100,
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 380,
+          "y": 280,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 110,
+          "y": 280,
+          "type": "file"
+        }
+      ]
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Office",
+      "artifactName": "${productName}-${version}.${ext}"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/barbosaj1983/filipeta.git"
+  },
+  "keywords": [
+    "balcao",
+    "pdv",
+    "recomendacao",
+    "vendas",
+    "electron",
+    "filipeta",
+    "neon",
+    "postgresql",
+    "assistente",
+    "inteligencia-artificial"
+  ],
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "volta": {
+    "node": "18.17.0",
+    "npm": "9.6.7"
+  }
+}

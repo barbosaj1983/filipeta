@@ -1,0 +1,307 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Filipeta</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; connect-src 'self' http: https:; style-src 'self' 'unsafe-inline'">
+  <style>
+  /* ===============================
+     Neuro-UX color tokens (drop-in)
+     =============================== */
+  :root{
+    /* Base (frio → foco/credibilidade) */
+    --bg-0:#090f1f;          /* navy profundo, reduz fadiga */
+    --bg-1:#0f172a;          /* slate-900 (compat) */
+    --bg-2:#0c1430;          /* camada escura p/ contraste */
+
+    /* Superfícies */
+    --card:#0f182c;          /* painel escuro (palco) */
+    --surface:#0b1220;       /* inputs/list */
+
+    /* Texto */
+    --text-1:#eef2ff;        /* quase branco */
+    --text-2:#c9d4ff;        /* secundário frio */
+    --muted:#9aa6c3;         /* descrição neutra */
+
+    /* Acentos funcionais (mapa cerebral) */
+    --blue:#3b82f6;          /* “cognição/novidade” (Recomendados) */
+    --green:#22c55e;         /* “continuidade/reforço” (Mais consumidos) */
+    --violet:#a855f7;        /* “associação/integração” (Vendidos juntos) */
+
+    /* CTA e feedback */
+    --cta:#ff5a3d;           /* quente → abordagem/desejo */
+    --cta-dk:#e14b30;
+    --success-1:#34d399;     /* reforço (dopamina) */
+    --success-2:#059669;
+    --danger-1:#ef4444;
+    --danger-2:#dc2626;
+    --amber-1:#f59e0b;       /* urgência suave */
+    --amber-2:#b45309;
+
+    /* Borda/vidro/sombra */
+    --stroke:#1e2a46;
+    --glass:rgba(255,255,255,.06);
+    --glass-2:rgba(255,255,255,.12);
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+
+    /* Radius & timing */
+    --r:12px;
+    --r-pill:999px;
+    --t:.18s;
+  }
+
+  /* ===============================
+     Base
+     =============================== */
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:
+      radial-gradient(1200px 800px at 12% -10%, #13214a 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 12%, #1a2b59 0%, transparent 65%),
+      linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 70%, var(--bg-2) 100%);
+    color:var(--text-1);
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    user-select:text; overflow:hidden;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  }
+
+  .wrap{
+    width:360px; height:100vh; padding:10px; box-sizing:border-box;
+    display:flex; flex-direction:column; gap:10px; position:relative;
+  }
+
+  /* ===============================
+     Header (title + minimize)
+     =============================== */
+  .header{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 12px; border-radius:8px; margin-bottom:5px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    border:1px solid var(--glass-2);
+    box-shadow:var(--shadow);
+  }
+  .title-section{ flex:1; text-align:center; }
+  .title{ font-weight:800; font-size:14px; letter-spacing:.4px; color:#f1f5f9; margin:0; }
+  .version{ font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* ===============================
+     Cards
+     =============================== */
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    border:1px solid var(--glass-2);
+    border-radius:var(--r); padding:10px; box-shadow:var(--shadow);
+  }
+  .label{ font-size:12px; color:var(--text-2); margin-bottom:6px; letter-spacing:.2px }
+
+  /* Borda funcional guia a leitura */
+  .card.recomendados{ border-left:4px solid var(--blue); }
+  .card.mais-consumidos{ border-left:4px solid var(--green); }
+  .card.vendidos-juntos{ border-left:4px solid var(--violet); }
+
+  /* ===============================
+     Inputs (foco = “flash” neural)
+     =============================== */
+  .row{ display:flex; gap:6px; align-items:center; }
+  .input-group{ display:flex; gap:6px; flex:1; align-items:center; }
+
+  input[type="text"]{
+    flex:1; width:230.6px !important; height:30.4px !important;
+    padding:12px 16px; border-radius:8px; outline:none;
+    border:1px solid var(--stroke); background:#0b1220; color:#fff;
+    font-size:14px; font-weight:600; box-sizing:border-box;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06);
+    transition: box-shadow var(--t) ease, transform var(--t) ease, border-color var(--t) ease;
+  }
+  #cpf, #ean{ flex:none !important; width:230.6px !important; height:30.4px !important; }
+
+  @keyframes focus-flash{
+    0%{ box-shadow:0 0 0 0 rgba(34,197,94,.0) }
+    50%{ box-shadow:0 0 0 6px rgba(34,197,94,.15) }
+    100%{ box-shadow:0 0 0 0 rgba(34,197,94,.0) }
+  }
+  input[type="text"]:focus{
+    border-color:var(--green);
+    transform:translateY(-1px);
+    animation:focus-flash .32s ease;
+  }
+  input::placeholder{ color:#91a0c5; opacity:.8 }
+
+  .muted{ color:var(--muted); font-size:12px }
+  .error{ color:var(--danger-1); font-size:12px; margin-top:6px }
+
+  /* ===============================
+     Botões (CTA quente; hover = leve “approach”)
+     =============================== */
+  .btn{
+    padding:10px 14px; border-radius:8px; border:none; cursor:pointer;
+    font-weight:800; font-size:12px; white-space:nowrap;
+    display:flex; align-items:center; justify-content:center;
+    position:relative; overflow:hidden; text-transform:uppercase; letter-spacing:.5px;
+    box-shadow: 0 4px 8px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.18);
+    transition: transform var(--t) ease, box-shadow var(--t) ease, filter var(--t) ease;
+  }
+  .btn:hover{ transform:translateY(-1px); filter:brightness(1.04) }
+  .btn:active{ transform:translateY(0); filter:brightness(.98) }
+
+  .btn.primary{
+    background:linear-gradient(180deg, var(--cta) 0%, var(--cta-dk) 100%);
+    color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.28);
+    box-shadow:0 12px 26px rgba(225,75,48,.32), inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .btn.secondary{
+    background:linear-gradient(180deg, #6b7280, #374151);
+    color:#f9fafb; text-shadow:0 1px 2px rgba(0,0,0,.28);
+  }
+  .btn.danger{
+    background:linear-gradient(180deg, var(--danger-1), var(--danger-2));
+    color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.28);
+  }
+  .btn.clear{
+    background:linear-gradient(180deg, var(--danger-1), var(--danger-2));
+    color:#fff; padding:8px 10px; font-size:14px; min-width:32px; min-height:32px;
+  }
+  .btn.minimize{
+    width:36px; height:36px; padding:0; font-size:16px; font-weight:900;
+    background:linear-gradient(180deg, var(--danger-1), var(--danger-2)); color:#fff;
+  }
+  .btn:disabled{ opacity:.6; cursor:not-allowed; transform:none !important; filter:none !important }
+
+  /* ===============================
+     Listas/itens (guia por acentos; microrecompensa no hover)
+     =============================== */
+  .list{ display:flex; flex-direction:column; gap:6px; max-height:calc(5*42px); overflow-y:auto; }
+  .item{
+    display:flex; justify-content:space-between; gap:8px;
+    background:var(--surface); border:1px solid var(--stroke);
+    padding:8px; border-radius:10px; font-size:11px; cursor:pointer;
+    transition: background-color var(--t) ease, box-shadow var(--t) ease, border-color var(--t) ease;
+  }
+  .item:hover{
+    background:#14203a; border-color:#28406e; box-shadow:0 8px 18px rgba(0,0,0,.16);
+  }
+  .item-content{ display:flex; flex-direction:column; gap:2px; flex:1 }
+  .item-ean{ font-size:10px; color:var(--muted); font-family:ui-monospace,Menlo,Consolas,monospace }
+  .item-ean:hover{ color:#b7c7ff }
+  .item-name{ font-size:11px; font-weight:700; color:#e8eeff }
+  .item-name:hover{ color:#9fd6ff }
+  .tag{ font-size:10px; padding:2px 6px; border-radius:var(--r-pill); background:#0f766e; }
+
+  /* Scroll sutil (não distrai) */
+  .list::-webkit-scrollbar{ width:8px }
+  .list::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.08));
+    border-radius:8px; border:2px solid transparent; background-clip:padding-box;
+  }
+
+  /* Seção rolável principal */
+  .scroll{ display:flex; flex-direction:column; gap:10px; flex:1; min-height:0; overflow-y:auto; padding-right:2px }
+
+  /* ===============================
+     Toast (onda neural = reforço)
+     =============================== */
+  .toast{
+    position:fixed; top:80px; right:20px; z-index:1000;
+    color:#03120d; font-weight:900; font-size:12px; letter-spacing:.2px;
+    padding:10px 16px; border-radius:var(--r-pill);
+    background:linear-gradient(180deg, var(--success-1), var(--success-2));
+    border:1px solid rgba(5,150,105,.8);
+    box-shadow:0 12px 28px rgba(16,185,129,.35), inset 0 1px 0 rgba(255,255,255,.18);
+    opacity:0; transform: translateX(120%) scale(.96);
+    transition: opacity .28s ease, transform .28s cubic-bezier(.68,-.55,.265,1.55);
+  }
+  .toast.show{ opacity:1; transform: translateX(0) scale(1) }
+  .toast.error{
+    background:linear-gradient(180deg, var(--danger-1), var(--danger-2));
+    color:#fff; border:1px solid rgba(185,28,28,.9);
+    box-shadow:0 12px 28px rgba(239,68,68,.35);
+  }
+
+  /* ===============================
+     Footer
+     =============================== */
+  .footer{
+    margin-top:auto; text-align:center; opacity:.8; padding:8px 0;
+    font-size:10px; color:var(--muted); border-top:1px solid var(--glass-2);
+  }
+  .footer .build-info{ font-size:9px; opacity:.6; margin-top:2px }
+
+  /* ===============================
+     Utilitários/estados
+     =============================== */
+  .loading{ display:flex; justify-content:center; align-items:center; flex:1; color:#b7c2e9; font-size:12px; padding:20px }
+  .empty{ text-align:center; color:var(--muted); font-size:11px; padding:20px; font-style:italic }
+</style>
+
+</head>
+<body>
+  <div class="wrap">
+    <!-- Header com título, versão e botão minimizar -->
+    <div class="header">
+      <div></div> <!-- Spacer -->
+      <div class="title-section">
+        <div class="title">Assistente de Balcão</div>
+        <div>v1.10.0</div>
+      </div>
+      <button id="minimize-btn" class="btn minimize" title="Minimizar">−</button>
+    </div>
+
+    <!-- CPF + Nome do cliente -->
+    <div class="card">
+      <div class="label">CPF do cliente</div>
+      <div class="row">
+        <div class="input-group">
+          <input id="cpf" placeholder="___.___.___-__" maxlength="14" autocomplete="off" />
+          <button id="btn-clear-cpf" class="btn clear" title="Limpar CPF">×</button>
+        </div>
+        <button id="btn-buscar-cpf" class="btn primary" title="Buscar CPF">🔍</button>
+      </div>
+      <div id="cliente-nome" class="name" style="margin-top:6px; min-height:18px; font-size:11px; color: var(--accent);"></div>
+    </div>
+
+    <!-- EAN + Descrição do produto -->
+    <div class="card">
+      <div class="label">Código de barras (EAN)</div>
+      <div class="row">
+        <div class="input-group">
+          <input id="ean" placeholder="Digite/escaneie EAN" maxlength="14" autocomplete="off" />
+          <button id="btn-clear-ean" class="btn clear" title="Limpar EAN">×</button>
+        </div>
+        <button id="btn-ok-ean" class="btn primary" title="Confirmar EAN">✓</button>
+      </div>
+      <div id="produto-desc" class="name" style="margin-top:6px; min-height:18px; font-size:11px; color: var(--accent);"></div>
+    </div>
+
+    <!-- A PARTIR DAQUI ROLA TUDO -->
+    <div class="scroll">
+      <div class="card recomendados">
+        <div class="label">Recomendados para o cliente</div>
+        <div id="recomendados" class="list"></div>
+      </div>
+
+      <div class="card mais-consumidos">
+        <div class="label">Produtos mais consumidos</div>
+        <div id="mais-consumidos" class="list"></div>
+      </div>
+
+      <div class="card vendidos-juntos">
+        <div class="label">Vendidos juntos</div>
+        <div id="vendidos-juntos" class="list"></div>
+      </div>
+    </div>
+
+    <!-- Footer com informações de versão -->
+    <div class="footer">
+      Filipeta Assistant
+      <div class="build-info">Build 20241201 • © 2024</div>
+    </div>
+
+    <!-- Toast para notificações -->
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>
