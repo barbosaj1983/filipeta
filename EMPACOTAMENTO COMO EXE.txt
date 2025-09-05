@@ -1,0 +1,18 @@
+CD C:\filipeta
+
+git add .
+
+git commit -m "feat: melhorar sistema de cache popup"
+
+npm run dist-win
+
+
+
+
+****nao usar abaixo***
+
+
+npm run build-info
+
+
+npm run dist

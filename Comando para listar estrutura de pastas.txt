@@ -1,0 +1,1 @@
+tree "C:\filipeta" /F /A > C:\filipeta\estrutura.txt
