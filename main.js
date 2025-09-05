@@ -944,74 +944,72 @@ ipcMain.handle('updater-get-version', async () => {
 });
 
 // ========================================
-// DOWNLOAD E INSTALAÇÃO SEGURA - VERSÃO FINAL ROBUSTA
+// SISTEMA DE UPDATE FORÇADO - FORÇA BRUTA
+// Substitua o handler downloadAndInstallUpdate no main.js
 // ========================================
 
 ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
-    console.log('📨 IPC: downloadAndInstallUpdate', updateInfo);
+    console.log('📨 IPC: downloadAndInstallUpdate - MODO FORÇADO', updateInfo);
     
     const https = require('https');
     const fs = require('fs');
     const os = require('os');
-    const { spawn } = require('child_process');
+    const { spawn, exec } = require('child_process');
     const crypto = require('crypto');
     
-    // Gerar pasta temporária única para evitar conflitos
+    // Gerar pasta temporária única
     const timestamp = Date.now();
     const randomId = crypto.randomBytes(4).toString('hex');
     const tempDir = path.join(os.tmpdir(), `filipeta-update-${timestamp}-${randomId}`);
     const tempFilePath = path.join(tempDir, updateInfo.filename);
     
     try {
-        console.log(`📁 Criando pasta temporária: ${tempDir}`);
+        console.log('🚀 INICIANDO ATUALIZAÇÃO FORÇADA...');
+        console.log(`📁 Pasta temporária: ${tempDir}`);
         
-        // Criar pasta temporária com permissões explícitas
+        // Criar pasta temporária com permissões máximas
         if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true, mode: 0o755 });
-            console.log('✅ Pasta temporária criada');
+            fs.mkdirSync(tempDir, { recursive: true, mode: 0o777 });
+            console.log('✅ Pasta temporária criada com permissões máximas');
         }
         
-        console.log(`📥 Baixando para: ${tempFilePath}`);
-        
-        // Função robusta para download com redirects
-        const downloadFile = async (url, maxRedirects = 5) => {
+        // Função de download com redirect automático
+        const downloadFile = async (url, maxRedirects = 10) => {
             return new Promise((resolve, reject) => {
                 if (maxRedirects === 0) {
-                    reject(new Error('Muitos redirects'));
+                    reject(new Error('Limite de redirects excedido'));
                     return;
                 }
                 
-                console.log(`📡 Requisitando: ${url}`);
+                console.log(`📡 Baixando: ${url}`);
                 
                 const request = https.get(url, (response) => {
                     const { statusCode, headers } = response;
-                    console.log(`📊 Status: ${statusCode}`);
+                    console.log(`📊 Status HTTP: ${statusCode}`);
                     
-                    // Tratar redirects
+                    // Seguir redirects automaticamente
                     if (statusCode >= 300 && statusCode < 400 && headers.location) {
-                        console.log(`🔄 Redirect para: ${headers.location}`);
-                        response.resume(); // Consumir response
-                        
-                        // Seguir redirect
+                        console.log(`🔄 Redirect: ${headers.location}`);
+                        response.resume();
                         downloadFile(headers.location, maxRedirects - 1)
                             .then(resolve)
                             .catch(reject);
                         return;
                     }
                     
-                    // Verificar sucesso
                     if (statusCode !== 200) {
                         response.resume();
                         reject(new Error(`HTTP ${statusCode}: ${response.statusMessage}`));
                         return;
                     }
                     
-                    // Preparar escrita do arquivo
-                    console.log(`📦 Tamanho esperado: ${headers['content-length']} bytes`);
-                    
+                    // Criar arquivo com permissões máximas
                     let file;
                     try {
-                        file = fs.createWriteStream(tempFilePath, { flags: 'w', mode: 0o644 });
+                        file = fs.createWriteStream(tempFilePath, { 
+                            flags: 'w', 
+                            mode: 0o777 
+                        });
                     } catch (fsError) {
                         response.resume();
                         reject(new Error(`Erro ao criar arquivo: ${fsError.message}`));
@@ -1025,8 +1023,8 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
                         downloadedBytes += chunk.length;
                         if (totalBytes > 0) {
                             const progress = Math.round((downloadedBytes / totalBytes) * 100);
-                            if (progress % 10 === 0) { // Log a cada 10%
-                                console.log(`📥 Progresso: ${progress}% (${downloadedBytes}/${totalBytes} bytes)`);
+                            if (progress % 20 === 0) {
+                                console.log(`📥 Download: ${progress}% (${downloadedBytes}/${totalBytes} bytes)`);
                             }
                         }
                     });
@@ -1040,44 +1038,25 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
                     });
                     
                     file.on('error', (err) => {
-                        console.error('❌ Erro ao escrever arquivo:', err);
-                        
+                        console.error('❌ Erro no arquivo:', err);
                         try {
                             file.close();
                             if (fs.existsSync(tempFilePath)) {
                                 fs.unlinkSync(tempFilePath);
                             }
-                        } catch (cleanupErr) {
-                            console.warn('⚠️ Erro na limpeza:', cleanupErr.message);
-                        }
-                        
-                        reject(new Error(`Erro de escrita: ${err.message}`));
-                    });
-                    
-                    response.on('error', (err) => {
-                        console.error('❌ Erro no download:', err);
-                        
-                        try {
-                            file.close();
-                            if (fs.existsSync(tempFilePath)) {
-                                fs.unlinkSync(tempFilePath);
-                            }
-                        } catch (cleanupErr) {
-                            console.warn('⚠️ Erro na limpeza:', cleanupErr.message);
-                        }
-                        
+                        } catch (e) { /* ignore */ }
                         reject(err);
                     });
                     
                 }).on('error', (err) => {
-                    console.error('❌ Erro na requisição HTTPS:', err);
+                    console.error('❌ Erro HTTPS:', err);
                     reject(err);
                 });
                 
-                // Timeout de 30 segundos
-                request.setTimeout(30000, () => {
+                // Timeout mais longo para downloads grandes
+                request.setTimeout(60000, () => {
                     request.destroy();
-                    reject(new Error('Timeout na requisição'));
+                    reject(new Error('Timeout no download'));
                 });
             });
         };
@@ -1091,117 +1070,195 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
         }
         
         const fileStats = fs.statSync(tempFilePath);
-        console.log(`📊 Arquivo criado: ${fileStats.size} bytes`);
+        console.log(`📊 Arquivo final: ${fileStats.size} bytes`);
         
-        if (fileStats.size < 512 * 1024) { // Menor que 512KB é suspeito
+        if (fileStats.size < 1024 * 1024) { // Menor que 1MB é muito suspeito
             throw new Error(`Arquivo muito pequeno: ${fileStats.size} bytes`);
         }
         
-        if (fileStats.size !== downloadedBytes) {
-            console.warn(`⚠️ Tamanhos diferentes: arquivo=${fileStats.size}, download=${downloadedBytes}`);
-        }
+        console.log('🔥 INICIANDO INSTALAÇÃO FORÇADA...');
         
-        console.log(`🚀 Executando instalação: ${tempFilePath}`);
+        // ========================================
+        // FORÇA BRUTA: INSTALAÇÃO AGRESSIVA
+        // ========================================
         
-        // Executar instalação silenciosa
-        const installerProcess = spawn(tempFilePath, ['/S'], {
+        // 1. Criar script batch para instalação forçada
+        const batchScript = path.join(tempDir, 'install_force.bat');
+        const batchContent = `@echo off
+echo FILIPETA FORCE UPDATE INSTALLER
+echo ================================
+
+echo Aguardando 3 segundos...
+timeout /t 3 /nobreak > nul
+
+echo Matando processos Filipeta...
+taskkill /f /im "Filipeta.Assistente.de.Balcao.exe" > nul 2>&1
+taskkill /f /im "filipeta.exe" > nul 2>&1
+taskkill /f /im "*filipeta*" > nul 2>&1
+
+echo Aguardando limpeza de processos...
+timeout /t 2 /nobreak > nul
+
+echo Executando instalador...
+"${tempFilePath}" /VERYSILENT /NORESTART /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS /SP-
+
+echo Aguardando instalação...
+timeout /t 5 /nobreak > nul
+
+echo Iniciando Filipeta...
+start "" "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta.Assistente.de.Balcao.exe"
+if errorlevel 1 (
+    start "" "%PROGRAMFILES%\\Filipeta Assistente de Balcao\\Filipeta.Assistente.de.Balcao.exe"
+)
+if errorlevel 1 (
+    start "" "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcao\\Filipeta.Assistente.de.Balcao.exe"
+)
+
+echo Limpando arquivos temporarios...
+timeout /t 10 /nobreak > nul
+del /f /q "${tempFilePath}" > nul 2>&1
+rmdir /s /q "${tempDir}" > nul 2>&1
+
+echo Instalacao forcada concluida!
+`;
+        
+        fs.writeFileSync(batchScript, batchContent, { mode: 0o777 });
+        console.log('📝 Script de instalação forçada criado');
+        
+        // 2. Preparar para instalação forçada
+        console.log('⚡ MODO FORÇA BRUTA ATIVADO');
+        
+        // 3. Executar script de instalação forçada
+        const batchProcess = spawn('cmd', ['/c', batchScript], {
             detached: true,
             stdio: 'ignore',
-            windowsHide: true
+            windowsHide: true,
+            shell: true
         });
         
-        installerProcess.unref();
-        console.log(`🔧 Processo de instalação iniciado (PID: ${installerProcess.pid})`);
+        batchProcess.unref();
+        console.log(`🚀 Script de força bruta executado (PID: ${batchProcess.pid})`);
         
-        // Função de limpeza assíncrona
-        const scheduleCleanup = () => {
-            setTimeout(async () => {
-                let attempts = 0;
-                const maxAttempts = 5;
-                
-                const cleanup = async () => {
-                    attempts++;
-                    console.log(`🧹 Tentativa de limpeza ${attempts}/${maxAttempts}`);
-                    
-                    try {
-                        // Remover arquivo
-                        if (fs.existsSync(tempFilePath)) {
-                            fs.unlinkSync(tempFilePath);
-                            console.log('✅ Arquivo temporário removido');
-                        }
-                        
-                        // Remover pasta
-                        if (fs.existsSync(tempDir)) {
-                            const files = fs.readdirSync(tempDir);
-                            if (files.length === 0) {
-                                fs.rmdirSync(tempDir);
-                                console.log('✅ Pasta temporária removida');
-                            } else {
-                                console.log(`⚠️ Pasta não vazia: ${files.length} arquivos`);
-                                if (attempts < maxAttempts) {
-                                    setTimeout(cleanup, 15000); // Tentar novamente em 15s
-                                }
-                            }
-                        }
-                    } catch (err) {
-                        console.log(`⚠️ Limpeza falhou (tentativa ${attempts}): ${err.message}`);
-                        if (attempts < maxAttempts) {
-                            setTimeout(cleanup, 15000);
-                        } else {
-                            console.log('⚠️ Limpeza abandonada, arquivos podem permanecer');
-                        }
-                    }
-                };
-                
-                await cleanup();
-            }, 45000); // Aguardar 45 segundos antes da primeira tentativa
-        };
-        
-        scheduleCleanup();
-        
-        // Fechar app após 4 segundos
+        // 4. Agendar fechamento do app atual
         setTimeout(() => {
-            console.log('⚡ Fechando aplicativo para permitir instalação...');
-            app.quit();
-        }, 4000);
+            console.log('💀 FORÇANDO FECHAMENTO DO APP PARA INSTALAÇÃO...');
+            
+            // Tentar métodos progressivamente mais agressivos
+            try {
+                // Método 1: Fechar graciosamente
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.close();
+                }
+                
+                setTimeout(() => {
+                    // Método 2: Quit forçado
+                    app.exit(0);
+                }, 1000);
+                
+                setTimeout(() => {
+                    // Método 3: Process kill (último recurso)
+                    process.exit(0);
+                }, 3000);
+                
+            } catch (error) {
+                console.error('❌ Erro ao fechar app:', error);
+                // Forçar saída mesmo com erro
+                process.exit(0);
+            }
+        }, 2000);
         
         return { 
             success: true, 
-            message: 'Instalação iniciada com sucesso',
+            message: 'INSTALAÇÃO FORÇADA INICIADA - App será fechado automaticamente',
             fileSize: fileStats.size,
-            tempPath: tempFilePath
+            mode: 'FORÇA_BRUTA',
+            tempPath: tempFilePath,
+            batchScript: batchScript
         };
         
     } catch (error) {
-        console.error('❌ Erro crítico no download/instalação:', error);
+        console.error('❌ ERRO CRÍTICO NA INSTALAÇÃO FORÇADA:', error);
         
-        // Limpeza de emergência
+        // Limpeza de emergência mais agressiva
         try {
-            if (fs.existsSync(tempFilePath)) {
-                fs.unlinkSync(tempFilePath);
-                console.log('🗑️ Arquivo de erro removido');
-            }
-            
-            if (fs.existsSync(tempDir)) {
+            // Tentar remover arquivos múltiplas vezes
+            for (let i = 0; i < 3; i++) {
                 try {
-                    const files = fs.readdirSync(tempDir);
-                    if (files.length === 0) {
-                        fs.rmdirSync(tempDir);
-                        console.log('🗑️ Pasta de erro removida');
+                    if (fs.existsSync(tempFilePath)) {
+                        fs.chmodSync(tempFilePath, 0o777);
+                        fs.unlinkSync(tempFilePath);
                     }
-                } catch (dirErr) {
-                    console.log('⚠️ Pasta em uso, será removida posteriormente');
+                    if (fs.existsSync(tempDir)) {
+                        const files = fs.readdirSync(tempDir);
+                        files.forEach(file => {
+                            const filePath = path.join(tempDir, file);
+                            try {
+                                fs.chmodSync(filePath, 0o777);
+                                fs.unlinkSync(filePath);
+                            } catch (e) { /* ignore */ }
+                        });
+                        fs.rmdirSync(tempDir);
+                    }
+                    break; // Se chegou aqui, limpeza bem-sucedida
+                } catch (cleanupErr) {
+                    if (i === 2) { // Última tentativa
+                        console.warn('⚠️ Limpeza de emergência falhou após 3 tentativas');
+                    }
                 }
             }
-        } catch (cleanupError) {
-            console.warn('⚠️ Erro na limpeza de emergência:', cleanupError.message);
+        } catch (finalError) {
+            console.warn('⚠️ Limpeza final falhou:', finalError.message);
         }
         
         return { 
             success: false, 
-            error: `Falha no download: ${error.message}`,
-            details: error.code || 'UNKNOWN_ERROR'
+            error: `FALHA NA INSTALAÇÃO FORÇADA: ${error.message}`,
+            details: error.code || 'UNKNOWN_ERROR',
+            mode: 'FORÇA_BRUTA_FALHOU'
         };
+    }
+});
+
+// ========================================
+// HANDLER ADICIONAL: FORCE RESTART
+// Para casos extremos onde é necessário restart manual
+// ========================================
+
+ipcMain.handle('forceRestartApp', async () => {
+    console.log('💀 FORCE RESTART SOLICITADO');
+    
+    try {
+        // Método mais agressivo de restart
+        const { spawn } = require('child_process');
+        const appPath = app.getPath('exe');
+        
+        console.log(`🔄 Tentando reiniciar: ${appPath}`);
+        
+        // Spawn novo processo antes de matar o atual
+        const newProcess = spawn(appPath, [], {
+            detached: true,
+            stdio: 'ignore'
+        });
+        
+        newProcess.unref();
+        
+        // Aguardar um pouco e forçar saída
+        setTimeout(() => {
+            console.log('💀 FORÇANDO SAÍDA PARA RESTART...');
+            process.exit(0);
+        }, 1000);
+        
+        return { success: true, message: 'Restart forçado iniciado' };
+        
+    } catch (error) {
+        console.error('❌ Erro no force restart:', error);
+        
+        // Se tudo falhar, pelo menos tentar fechar
+        setTimeout(() => {
+            process.exit(0);
+        }, 500);
+        
+        return { success: false, error: error.message };
     }
 });
 
