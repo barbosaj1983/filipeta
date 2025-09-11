@@ -103,12 +103,12 @@
   }
 
   function formatPercentage(value) {
-    const num = parseFloat(value);
-    if (isNaN(num) || num === null || num === undefined) {
-      return '0%';
-    }
-    return Math.round(num * 100) + '%';
+  const num = parseFloat(value);
+  if (isNaN(num) || num === null || num === undefined) {
+    return '0,00%';
   }
+  return num.toFixed(2).replace('.', ',') + '%';
+}
 
   // =============================
   // RENDERIZAÇÃO DE LISTAS

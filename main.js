@@ -947,13 +947,18 @@ ipcMain.handle('updater-get-version', async () => {
 // SISTEMA DE UPDATE FORÇADO COM NOMES CORRETOS - VERSÃO FINAL
 // ========================================
 
+// ========================================
+// SISTEMA DE UPDATE ROBUSTO COM FEEDBACK COMPLETO
+// Substitua o handler downloadAndInstallUpdate completo no main.js
+// ========================================
+
 ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
-    console.log('📨 IPC: downloadAndInstallUpdate - MODO FORÇADO', updateInfo);
+    console.log('📨 IPC: downloadAndInstallUpdate - MODO ROBUSTO', updateInfo);
     
     const https = require('https');
     const fs = require('fs');
     const os = require('os');
-    const { spawn, exec } = require('child_process');
+    const { spawn } = require('child_process');
     const crypto = require('crypto');
     
     // Gerar pasta temporária única
@@ -963,16 +968,16 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
     const tempFilePath = path.join(tempDir, updateInfo.filename);
     
     try {
-        console.log('🚀 INICIANDO ATUALIZAÇÃO FORÇADA...');
+        console.log('🚀 INICIANDO ATUALIZAÇÃO ROBUSTA...');
         console.log(`📁 Pasta temporária: ${tempDir}`);
         
-        // Criar pasta temporária com permissões máximas
+        // Criar pasta temporária
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true, mode: 0o777 });
-            console.log('✅ Pasta temporária criada com permissões máximas');
+            console.log('✅ Pasta temporária criada');
         }
         
-        // Função de download com redirect automático
+        // Função de download robusta
         const downloadFile = async (url, maxRedirects = 10) => {
             return new Promise((resolve, reject) => {
                 if (maxRedirects === 0) {
@@ -986,7 +991,6 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
                     const { statusCode, headers } = response;
                     console.log(`📊 Status HTTP: ${statusCode}`);
                     
-                    // Seguir redirects automaticamente
                     if (statusCode >= 300 && statusCode < 400 && headers.location) {
                         console.log(`🔄 Redirect: ${headers.location}`);
                         response.resume();
@@ -1002,13 +1006,9 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
                         return;
                     }
                     
-                    // Criar arquivo com permissões máximas
                     let file;
                     try {
-                        file = fs.createWriteStream(tempFilePath, { 
-                            flags: 'w', 
-                            mode: 0o777 
-                        });
+                        file = fs.createWriteStream(tempFilePath, { flags: 'w', mode: 0o777 });
                     } catch (fsError) {
                         response.resume();
                         reject(new Error(`Erro ao criar arquivo: ${fsError.message}`));
@@ -1022,7 +1022,7 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
                         downloadedBytes += chunk.length;
                         if (totalBytes > 0) {
                             const progress = Math.round((downloadedBytes / totalBytes) * 100);
-                            if (progress % 20 === 0) {
+                            if (progress % 10 === 0) {
                                 console.log(`📥 Download: ${progress}% (${downloadedBytes}/${totalBytes} bytes)`);
                             }
                         }
@@ -1052,7 +1052,6 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
                     reject(err);
                 });
                 
-                // Timeout mais longo para downloads grandes
                 request.setTimeout(60000, () => {
                     request.destroy();
                     reject(new Error('Timeout no download'));
@@ -1069,239 +1068,273 @@ ipcMain.handle('downloadAndInstallUpdate', async (event, updateInfo) => {
         }
         
         const fileStats = fs.statSync(tempFilePath);
-        console.log(`📊 Arquivo final: ${fileStats.size} bytes`);
+        console.log(`📊 Arquivo validado: ${fileStats.size} bytes`);
         
-        if (fileStats.size < 1024 * 1024) { // Menor que 1MB é muito suspeito
+        if (fileStats.size < 1024 * 1024) {
             throw new Error(`Arquivo muito pequeno: ${fileStats.size} bytes`);
         }
         
-        console.log('🔥 INICIANDO INSTALAÇÃO FORÇADA...');
+        console.log('🔧 CRIANDO SCRIPT DE INSTALAÇÃO ROBUSTO...');
         
         // ========================================
-        // SCRIPT BATCH CORRIGIDO COM NOMES CORRETOS
+        // SCRIPT BATCH ROBUSTO COM FEEDBACK COMPLETO
         // ========================================
         
-        // Criar script batch para instalação forçada
-        const batchScript = path.join(tempDir, 'install_force.bat');
+        const batchScript = path.join(tempDir, 'install_robust.bat');
         const batchContent = `@echo off
-chcp 65001 > nul
-echo FILIPETA FORCE UPDATE INSTALLER
-echo ================================
+title FILIPETA UPDATE INSTALLER
+color 0A
 
-echo Aguardando 3 segundos...
+echo.
+echo ========================================
+echo    FILIPETA FORCE UPDATE INSTALLER
+echo ========================================
+echo.
+echo Versao: ${updateInfo.version}
+echo Arquivo: ${updateInfo.filename}
+echo Tamanho: ${fileStats.size} bytes
+echo.
+echo ========================================
+
+echo [1/6] Aguardando 3 segundos...
 timeout /t 3 /nobreak > nul
 
-echo Matando processos Filipeta...
+echo.
+echo [2/6] Terminando processos Filipeta...
 taskkill /f /im "Filipeta*.exe" > nul 2>&1
 taskkill /f /im "*Filipeta*" > nul 2>&1
 taskkill /f /im "*filipeta*" > nul 2>&1
 taskkill /f /im "*Assistente*" > nul 2>&1
+echo     [OK] Processos terminados
 
-echo Aguardando limpeza de processos...
-timeout /t 2 /nobreak > nul
+echo.
+echo [3/6] Aguardando limpeza de processos...
+timeout /t 3 /nobreak > nul
+echo     [OK] Limpeza concluida
 
-echo ================================
-echo EXECUTANDO INSTALADOR COM MONITOR
-echo ================================
-echo Instalador: ${updateInfo.filename}
-echo Local: ${tempFilePath}
-echo ================================
+echo.
+echo [4/6] EXECUTANDO INSTALADOR...
+echo     Arquivo: "${tempFilePath}"
+echo     Parametros: /SILENT /NORESTART /FORCECLOSEAPPLICATIONS
+echo.
 
-REM VERSÃO COM MONITOR VISÍVEL - Remove VERYSILENT
-"${tempFilePath}" /SILENT /NORESTART /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS /SP-
+"${tempFilePath}" /SILENT /NORESTART /FORCECLOSEAPPLICATIONS /SP-
 
-echo ================================
-echo INSTALAÇÃO CONCLUÍDA
-echo ================================
-
-echo Aguardando instalação completar...
-timeout /t 5 /nobreak > nul
-
-echo Procurando Filipeta instalado...
-
-REM Tentar localizar o executável da aplicação em várias localizações possíveis
-set "APP_FOUND=0"
-
-REM Local 1: AppData Local Programs
-if exist "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcão.exe" (
-    echo ✅ Encontrado em AppData Local Programs
-    start "" "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcão.exe"
-    set "APP_FOUND=1"
-    goto :APP_STARTED
+if errorlevel 1 (
+    echo     [ERRO] Falha na instalacao
+    echo     Codigo de erro: %errorlevel%
+    pause
+    exit /b 1
+) else (
+    echo     [OK] Instalacao concluida com sucesso
 )
 
-REM Local 2: Program Files
-if exist "%PROGRAMFILES%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe" (
-    echo ✅ Encontrado em Program Files
-    start "" "%PROGRAMFILES%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe"
-    set "APP_FOUND=1"
-    goto :APP_STARTED
+echo.
+echo [5/6] Aguardando instalacao completar...
+timeout /t 10 /nobreak > nul
+
+echo.
+echo [6/6] PROCURANDO E INICIANDO FILIPETA...
+
+set APP_FOUND=0
+set "APP_PATH="
+
+REM Verificar Local 1: AppData Local Programs
+if exist "%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcao.exe" (
+    set "APP_PATH=%LOCALAPPDATA%\\Programs\\filipeta\\Filipeta Assistente de Balcao.exe"
+    set APP_FOUND=1
+    echo     [OK] Encontrado em: AppData Local Programs
+    goto START_APP
 )
 
-REM Local 3: Program Files x86
-if exist "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe" (
-    echo ✅ Encontrado em Program Files x86
-    start "" "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\Filipeta Assistente de Balcão.exe"
-    set "APP_FOUND=1"
-    goto :APP_STARTED
+REM Verificar Local 2: Program Files
+if exist "%PROGRAMFILES%\\Filipeta Assistente de Balcao\\Filipeta Assistente de Balcao.exe" (
+    set "APP_PATH=%PROGRAMFILES%\\Filipeta Assistente de Balcao\\Filipeta Assistente de Balcao.exe"
+    set APP_FOUND=1
+    echo     [OK] Encontrado em: Program Files
+    goto START_APP
 )
 
-REM Local 4: Busca por padrão alternativo 1
+REM Verificar Local 3: Program Files x86
+if exist "%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcao\\Filipeta Assistente de Balcao.exe" (
+    set "APP_PATH=%PROGRAMFILES(X86)%\\Filipeta Assistente de Balcao\\Filipeta Assistente de Balcao.exe"
+    set APP_FOUND=1
+    echo     [OK] Encontrado em: Program Files x86
+    goto START_APP
+)
+
+REM Verificar alternativas
 if exist "%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe" (
-    echo ✅ Encontrado como filipeta.exe
-    start "" "%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe"
-    set "APP_FOUND=1"
-    goto :APP_STARTED
+    set "APP_PATH=%LOCALAPPDATA%\\Programs\\filipeta\\filipeta.exe"
+    set APP_FOUND=1
+    echo     [OK] Encontrado como: filipeta.exe
+    goto START_APP
 )
 
-REM Local 5: Busca por padrão alternativo 2
 if exist "%PROGRAMFILES%\\Filipeta\\Filipeta.exe" (
-    echo ✅ Encontrado como Filipeta.exe
-    start "" "%PROGRAMFILES%\\Filipeta\\Filipeta.exe"
-    set "APP_FOUND=1"
-    goto :APP_STARTED
+    set "APP_PATH=%PROGRAMFILES%\\Filipeta\\Filipeta.exe"
+    set APP_FOUND=1
+    echo     [OK] Encontrado como: Filipeta.exe
+    goto START_APP
 )
 
-REM Local 6: Busca genérica com findstr
-echo 🔍 Fazendo busca avançada por Filipeta...
+echo     [INFO] Fazendo busca avancada...
 for /f "delims=" %%i in ('dir /s /b "%LOCALAPPDATA%\\Programs\\*Filipeta*.exe" 2^>nul') do (
-    echo ✅ Encontrado via busca: %%i
-    start "" "%%i"
-    set "APP_FOUND=1"
-    goto :APP_STARTED
+    set "APP_PATH=%%i"
+    set APP_FOUND=1
+    echo     [OK] Encontrado via busca: %%i
+    goto START_APP
 )
 
 for /f "delims=" %%i in ('dir /s /b "%PROGRAMFILES%\\*Filipeta*.exe" 2^>nul') do (
-    echo ✅ Encontrado via busca: %%i
-    start "" "%%i"
-    set "APP_FOUND=1"
-    goto :APP_STARTED
+    set "APP_PATH=%%i"
+    set APP_FOUND=1
+    echo     [OK] Encontrado via busca: %%i
+    goto START_APP
 )
 
-:APP_STARTED
-echo ================================
-if "%APP_FOUND%"=="1" (
-    echo ✅ FILIPETA REINICIADO COM SUCESSO!
-    echo A aplicação foi atualizada e está sendo iniciada...
+:START_APP
+echo.
+if %APP_FOUND%==1 (
+    echo ========================================
+    echo    INICIANDO FILIPETA ATUALIZADO
+    echo ========================================
+    echo Caminho: %APP_PATH%
+    echo.
+    
+    start "" "%APP_PATH%"
+    
+    timeout /t 3 /nobreak > nul
+    
+    REM Verificar se iniciou
+    tasklist /fi "imagename eq Filipeta*" 2>nul | find /i "filipeta" >nul
+    if errorlevel 1 (
+        echo     [AVISO] Filipeta pode nao ter iniciado automaticamente
+        echo     Tente iniciar manualmente: %APP_PATH%
+    ) else (
+        echo     [OK] Filipeta iniciado com sucesso!
+    )
+    
 ) else (
-    echo ⚠️ FILIPETA NÃO ENCONTRADO AUTOMATICAMENTE
-    echo Por favor, inicie manualmente ou reinicie o sistema
+    echo ========================================
+    echo    FILIPETA NAO ENCONTRADO
+    echo ========================================
+    echo [ERRO] Nao foi possivel localizar o executavel
+    echo.
     echo Locais verificados:
     echo - %LOCALAPPDATA%\\Programs\\filipeta\\
-    echo - %PROGRAMFILES%\\Filipeta Assistente de Balcão\\
-    echo - %PROGRAMFILES(X86)%\\Filipeta Assistente de Balcão\\
+    echo - %PROGRAMFILES%\\Filipeta Assistente de Balcao\\
+    echo - %PROGRAMFILES(X86)%\\Filipeta Assistente de Balcao\\
+    echo.
+    echo Por favor, inicie manualmente ou reinstale a aplicacao.
 )
-echo ================================
 
-echo 🧹 Limpando arquivos temporários...
-timeout /t 3 /nobreak > nul
+echo.
+echo ========================================
+echo    LIMPEZA DE ARQUIVOS TEMPORARIOS
+echo ========================================
 
-REM Limpeza agressiva de arquivos temporários
+timeout /t 2 /nobreak > nul
+
 del /f /q "${tempFilePath}" > nul 2>&1
+if errorlevel 1 (
+    echo     [AVISO] Nao foi possivel remover: ${updateInfo.filename}
+) else (
+    echo     [OK] Arquivo removido: ${updateInfo.filename}
+)
+
 del /f /q "${batchScript}" > nul 2>&1
 rmdir /s /q "${tempDir}" > nul 2>&1
+if errorlevel 1 (
+    echo     [AVISO] Pasta temporaria pode nao ter sido removida
+) else (
+    echo     [OK] Pasta temporaria removida
+)
 
-echo ✅ Limpeza concluída!
-echo ================================
-echo 🎉 ATUALIZAÇÃO FORÇADA FINALIZADA
-echo ================================
-echo Você pode fechar esta janela.
-timeout /t 5 /nobreak > nul
+echo.
+echo ========================================
+echo    ATUALIZACAO CONCLUIDA
+echo ========================================
+echo.
+echo Status: Instalacao finalizada
+echo Filipeta: %APP_FOUND% (1=Encontrado, 0=Nao encontrado)
+echo.
+echo Pressione qualquer tecla para fechar...
+pause > nul
 `;
 
         fs.writeFileSync(batchScript, batchContent, { encoding: 'utf8', mode: 0o777 });
-        console.log('📝 Script de instalação forçada criado com busca inteligente');
+        console.log('📝 Script robusto criado com feedback completo');
         
-        // 2. Preparar para instalação forçada
-        console.log('⚡ MODO FORÇA BRUTA ATIVADO');
-        
-        // 3. Executar script de instalação forçada
+        // Executar script robusto
         const batchProcess = spawn('cmd', ['/c', batchScript], {
             detached: true,
             stdio: 'ignore',
-            windowsHide: true,
+            windowsHide: false, // IMPORTANTE: Manter janela visível
             shell: true
         });
         
         batchProcess.unref();
-        console.log(`🚀 Script de força bruta executado (PID: ${batchProcess.pid})`);
+        console.log(`🚀 Script robusto executado (PID: ${batchProcess.pid})`);
         
-        // 4. Agendar fechamento do app atual
+        // Fechar app após 3 segundos
         setTimeout(() => {
-            console.log('💀 FORÇANDO FECHAMENTO DO APP PARA INSTALAÇÃO...');
+            console.log('💀 FECHANDO APP PARA INSTALAÇÃO...');
             
-            // Tentar métodos progressivamente mais agressivos
             try {
-                // Método 1: Fechar graciosamente
                 if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.close();
                 }
                 
                 setTimeout(() => {
-                    // Método 2: Quit forçado
                     app.exit(0);
                 }, 1000);
                 
                 setTimeout(() => {
-                    // Método 3: Process kill (último recurso)
                     process.exit(0);
                 }, 3000);
                 
             } catch (error) {
                 console.error('❌ Erro ao fechar app:', error);
-                // Forçar saída mesmo com erro
                 process.exit(0);
             }
-        }, 2000);
+        }, 3000);
         
         return { 
             success: true, 
-            message: 'INSTALAÇÃO FORÇADA INICIADA - App será fechado automaticamente',
+            message: 'INSTALAÇÃO ROBUSTA INICIADA - Acompanhe o progresso na janela do console',
             fileSize: fileStats.size,
-            mode: 'FORÇA_BRUTA',
+            mode: 'ROBUSTO_COM_FEEDBACK',
             tempPath: tempFilePath,
             batchScript: batchScript
         };
         
     } catch (error) {
-        console.error('❌ ERRO CRÍTICO NA INSTALAÇÃO FORÇADA:', error);
+        console.error('❌ ERRO CRÍTICO NA INSTALAÇÃO ROBUSTA:', error);
         
-        // Limpeza de emergência mais agressiva
+        // Limpeza de emergência
         try {
-            // Tentar remover arquivos múltiplas vezes
-            for (let i = 0; i < 3; i++) {
-                try {
-                    if (fs.existsSync(tempFilePath)) {
-                        fs.chmodSync(tempFilePath, 0o777);
-                        fs.unlinkSync(tempFilePath);
-                    }
-                    if (fs.existsSync(tempDir)) {
-                        const files = fs.readdirSync(tempDir);
-                        files.forEach(file => {
-                            const filePath = path.join(tempDir, file);
-                            try {
-                                fs.chmodSync(filePath, 0o777);
-                                fs.unlinkSync(filePath);
-                            } catch (e) { /* ignore */ }
-                        });
-                        fs.rmdirSync(tempDir);
-                    }
-                    break; // Se chegou aqui, limpeza bem-sucedida
-                } catch (cleanupErr) {
-                    if (i === 2) { // Última tentativa
-                        console.warn('⚠️ Limpeza de emergência falhou após 3 tentativas');
-                    }
-                }
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
             }
-        } catch (finalError) {
-            console.warn('⚠️ Limpeza final falhou:', finalError.message);
+            if (fs.existsSync(tempDir)) {
+                const files = fs.readdirSync(tempDir);
+                files.forEach(file => {
+                    try {
+                        fs.unlinkSync(path.join(tempDir, file));
+                    } catch (e) { /* ignore */ }
+                });
+                fs.rmdirSync(tempDir);
+            }
+        } catch (cleanupError) {
+            console.warn('⚠️ Erro na limpeza de emergência:', cleanupError.message);
         }
         
         return { 
             success: false, 
-            error: `FALHA NA INSTALAÇÃO FORÇADA: ${error.message}`,
+            error: `FALHA NA INSTALAÇÃO ROBUSTA: ${error.message}`,
             details: error.code || 'UNKNOWN_ERROR',
-            mode: 'FORÇA_BRUTA_FALHOU'
+            mode: 'ROBUSTO_FALHOU'
         };
     }
 });
