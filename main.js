@@ -957,7 +957,7 @@ ipcMain.handle('imprimir-filipeta', async (event, payload) => {
     // Criar janela oculta para impressão
     const printWindow = new BrowserWindow({
       width: 302,
-      height: 832,
+      height: 1050,
       show: false,
       webPreferences: {
         preload: path.join(__dirname, 'preload-print.js'),
@@ -981,8 +981,8 @@ ipcMain.handle('imprimir-filipeta', async (event, payload) => {
         printWindow.webContents.print({
           silent: false,
           printBackground: true,
-          pageSize: { width: 80000, height: 220000 },
-          margins: { marginType: 'custom', top: 0, bottom: 0, left: 0, right: 0 }
+          pageSize: { width: 80000, height: 230000 },
+          margins: { marginType: 'none' }
         }, (success, failureReason) => {
           if (success) {
             console.log('✅ Filipeta impressa com sucesso');
