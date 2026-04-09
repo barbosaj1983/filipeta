@@ -5,7 +5,7 @@ const AutoLaunch = require('auto-launch');
 const { autoUpdater } = require('electron-updater');
 
 // Informações de versão
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.10.12';
 const BUILD_DATE = '2025-09-01';
 
 let mainWindow;
@@ -673,13 +673,16 @@ function preventCloseShortcuts() {
 function createMainWindow() {
   const { screen } = require('electron');
   const display = screen.getPrimaryDisplay();
-  const { height } = display.workAreaSize;
+  const { width: screenWidth, height: screenHeight } = display.workAreaSize;
+  const winWidth = Math.max(300, Math.min(500, Math.round(screenWidth * 0.186)));
+  const winHeight = Math.max(500, Math.min(screenHeight, Math.round(screenHeight * 0.91)));
 
   console.log('🖼️ Criando janela principal...');
+  console.log(`📐 Monitor: ${screenWidth}x${screenHeight} → Janela: ${winWidth}x${winHeight}`);
 
   mainWindow = new BrowserWindow({
-    width: 380,
-    height: height,
+    width: winWidth,
+    height: winHeight,
     x: 0,
     y: 0,
     alwaysOnTop: true,
@@ -703,7 +706,7 @@ function createMainWindow() {
 
   console.log(`🚀 Filipeta ${APP_VERSION} iniciado`);
   console.log(`📅 Build: ${BUILD_DATE}`);
-  console.log(`📏 Dimensões: 380x${height}px`);
+  console.log(`📏 Dimensões: ${winWidth}x${winHeight}px`);
 
   // Eventos da janela
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
@@ -838,6 +841,180 @@ ipcMain.handle('db-cache-stats', async (event) => {
 });
 
 // ========================================
+// HANDLERS IPC PARA PREÇOS FILIPETA IMPRESSA
+// ========================================
+
+async function buscarPrecosFilipetaMain(eans, nomes) {
+  if ((!eans || !eans.length) && (!nomes || !nomes.length)) return [];
+
+  const cacheKey = `precos_filipeta:${(eans||[]).sort().join(',')}_${(nomes||[]).sort().join(',')}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const client = await getNeonClient();
+    if (!client) return [];
+
+    const eansClean = (eans || []).filter(e => e && e.length >= 7);
+    const nomesClean = (nomes || []).filter(n => n && n.length > 2);
+
+    console.log(`🔍 Buscando preços filipeta: ${eansClean.length} EANs, ${nomesClean.length} nomes`);
+
+    let result;
+    if (eansClean.length > 0 && nomesClean.length > 0) {
+      result = await client`
+        SELECT ean, nome_produto, preco_de, preco_por
+        FROM filipeta_impressa_precos
+        WHERE (ean = ANY(${eansClean}) OR nome_produto = ANY(${nomesClean})) AND ativo = TRUE`;
+    } else if (eansClean.length > 0) {
+      result = await client`
+        SELECT ean, nome_produto, preco_de, preco_por
+        FROM filipeta_impressa_precos
+        WHERE ean = ANY(${eansClean}) AND ativo = TRUE`;
+    } else {
+      result = await client`
+        SELECT ean, nome_produto, preco_de, preco_por
+        FROM filipeta_impressa_precos
+        WHERE nome_produto = ANY(${nomesClean}) AND ativo = TRUE`;
+    }
+
+    console.log(`📊 Preços encontrados: ${result.length}`);
+    cache.set(cacheKey, result);
+    return result;
+  } catch (error) {
+    console.error('❌ Erro buscar preços filipeta:', error);
+    return [];
+  }
+}
+
+ipcMain.handle('db-buscar-precos-filipeta', async (event, eans, nomes) => {
+  console.log('📨 IPC: db-buscar-precos-filipeta', eans?.length, 'EANs', nomes?.length, 'nomes');
+  return await buscarPrecosFilipetaMain(eans, nomes);
+});
+
+// ========================================
+// HANDLER IPC PARA IMPRESSÃO FILIPETA TÉRMICA
+// ========================================
+
+function loadCompanyConfig() {
+  const fs = require('fs');
+  const configPath = path.join(__dirname, 'company-config.json');
+  try {
+    if (fs.existsSync(configPath)) {
+      const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      console.log('✅ company-config.json carregado:', data.tenant_name);
+      return data;
+    }
+  } catch (e) {
+    console.warn('⚠️ Erro ao ler company-config.json:', e.message);
+  }
+  return { tenant_name: 'Drogaria', tenant_instagram: '', tenant_logo: '' };
+}
+
+function getLogoBase64() {
+  const fs = require('fs');
+  const config = loadCompanyConfig();
+  const assetsDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'assets')
+    : path.join(__dirname, 'assets');
+  const logoPath = path.join(assetsDir, config.tenant_logo || 'logo.png');
+  try {
+    if (fs.existsSync(logoPath)) {
+      const buffer = fs.readFileSync(logoPath);
+      const ext = path.extname(logoPath).replace('.', '');
+      const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+      return `data:${mime};base64,${buffer.toString('base64')}`;
+    }
+  } catch (e) {
+    console.warn('⚠️ Logo não encontrado:', logoPath);
+  }
+  return '';
+}
+
+ipcMain.handle('imprimir-filipeta', async (event, payload) => {
+  console.log('📨 IPC: imprimir-filipeta', payload?.cpf);
+
+  try {
+    const config = loadCompanyConfig();
+    const logoBase64 = getLogoBase64();
+
+    // Calcular "Válido até" (último dia do mês)
+    const now = new Date();
+    const validoAte = now.toLocaleDateString('pt-BR');
+    const impressoEm = now.toLocaleString('pt-BR');
+
+    const printData = {
+      cpf: payload.cpf,
+      nomeCliente: payload.nomeCliente,
+      produtos: payload.produtos,
+      tenantName: config.tenant_name,
+      tenantInstagram: config.tenant_instagram,
+      logoBase64: logoBase64,
+      validoAte: validoAte,
+      impressoEm: impressoEm
+    };
+
+    // Criar janela oculta para impressão
+    const printWindow = new BrowserWindow({
+      width: 302,
+      height: 832,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload-print.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        webSecurity: true
+      }
+    });
+
+    await printWindow.loadFile('filipeta-print.html');
+    printWindow.webContents.send('dados-filipeta', printData);
+
+    return new Promise((resolve) => {
+      let resolved = false;
+
+      const printReadyHandler = () => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutId);
+        console.log('🖨️ Imprimindo filipeta...');
+        printWindow.webContents.print({
+          silent: false,
+          printBackground: true,
+          pageSize: { width: 80000, height: 220000 },
+          margins: { marginType: 'custom', top: 0, bottom: 0, left: 0, right: 0 }
+        }, (success, failureReason) => {
+          if (success) {
+            console.log('✅ Filipeta impressa com sucesso');
+          } else {
+            console.error('❌ Erro na impressão:', failureReason);
+          }
+          if (!printWindow.isDestroyed()) printWindow.close();
+          resolve({ success, error: failureReason || null });
+        });
+      };
+
+      ipcMain.once('print-ready', printReadyHandler);
+
+      const timeoutId = setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        ipcMain.removeListener('print-ready', printReadyHandler);
+        if (printWindow && !printWindow.isDestroyed()) {
+          console.warn('⏰ Timeout na impressão, fechando janela');
+          printWindow.close();
+        }
+        resolve({ success: false, error: 'Timeout na impressão' });
+      }, 30000);
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao imprimir filipeta:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ========================================
 // HANDLERS IPC PARA O POPUP
 // ========================================
 
@@ -855,6 +1032,13 @@ ipcMain.handle('abrir-popup-uso-continuo', async (event, cpf) => {
     console.log('📨 IPC: abrir-popup-uso-continuo', cpf);
     console.log('🔍 RASTREAMENTO: Popup solicitado via IPC manual');
     
+    // Safety-reset caso a flag tenha ficado presa
+    if (popupCriandoAtualmente && (!popupUsoContinuoWindow || popupUsoContinuoWindow.isDestroyed())) {
+        console.warn('⚠️ Reset de popupCriandoAtualmente (estava preso)');
+        popupCriandoAtualmente = false;
+        ultimoCpfPopup = null;
+    }
+
     try {
         const popup = await criarPopupUsoContinuo(cpf, 'IPC_MANUAL');
         return { 

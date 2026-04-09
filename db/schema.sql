@@ -48,3 +48,15 @@ CREATE TABLE IF NOT EXISTS feedback_sugestoes (
   acao          text CHECK (acao IN ('aceitar','recusar')),
   ts            timestamptz DEFAULT now()
 );
+
+-- Precos para impressao da filipeta termica
+CREATE TABLE IF NOT EXISTS filipeta_impressa_precos (
+    ean            VARCHAR(20) PRIMARY KEY,
+    nome_produto   TEXT NOT NULL,
+    preco_de       NUMERIC(12,2) NOT NULL,
+    preco_por      NUMERIC(12,2) NOT NULL,
+    ativo          BOOLEAN DEFAULT TRUE,
+    updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_filipeta_precos_ean ON filipeta_impressa_precos(ean);
+COMMENT ON TABLE filipeta_impressa_precos IS 'Precos para impressao da filipeta termica - alimentado via ETL do banco local';

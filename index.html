@@ -67,7 +67,7 @@
   }
 
   .wrap{
-    width:360px; height:100vh; padding:10px; box-sizing:border-box;
+    width:100%; height:100vh; padding:10px; box-sizing:border-box;
     display:flex; flex-direction:column; gap:10px; position:relative;
   }
 
@@ -83,7 +83,7 @@
     box-shadow:var(--shadow);
   }
   .title-section{ flex:1; text-align:center; }
-  .title{ font-weight:800; font-size:14px; letter-spacing:.4px; color:#f1f5f9; margin:0; }
+  .title{ font-weight:800; font-size:14px; letter-spacing:.4px; color:#f1f5f9; margin:0; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
   .version{ font-size:10px; color:var(--muted); margin-top:2px; }
 
   /* ===============================
@@ -92,9 +92,30 @@
   .card{
     background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
     border:1px solid var(--glass-2);
-    border-radius:var(--r); padding:10px; box-shadow:var(--shadow);
+    border-radius:var(--r); padding:5px; box-shadow:var(--shadow);
   }
-  .label{ font-size:12px; color:var(--text-2); margin-bottom:6px; letter-spacing:.2px }
+
+  /* 🔹 Labels (títulos dos cards) - OPÇÃO 1 */
+  .label{
+    padding:5px 10px;
+    font-weight:700;
+    font-size:13px;
+    border-radius:6px;
+    margin-bottom:8px;
+    letter-spacing:.3px;
+  }
+  .card.recomendados .label{
+    background:rgba(59,130,246,.15);
+    color:var(--blue);
+  }
+  .card.mais-consumidos .label{
+    background:rgba(34,197,94,.15);
+    color:var(--green);
+  }
+  .card.vendidos-juntos .label{
+    background:rgba(168,85,247,.15);
+    color:var(--violet);
+  }
 
   /* Borda funcional guia a leitura */
   .card.recomendados{ border-left:4px solid var(--blue); }
@@ -108,14 +129,14 @@
   .input-group{ display:flex; gap:6px; flex:1; align-items:center; }
 
   input[type="text"]{
-    flex:1; width:230.6px !important; height:30.4px !important;
+    flex:1; height:30.4px !important;
     padding:12px 16px; border-radius:8px; outline:none;
     border:1px solid var(--stroke); background:#0b1220; color:#fff;
     font-size:14px; font-weight:600; box-sizing:border-box;
     box-shadow: inset 0 2px 4px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06);
     transition: box-shadow var(--t) ease, transform var(--t) ease, border-color var(--t) ease;
   }
-  #cpf, #ean{ flex:none !important; width:230.6px !important; height:30.4px !important; }
+  #cpf, #ean{ flex:1 !important; height:30.4px !important; min-width:0 !important; }
 
   @keyframes focus-flash{
     0%{ box-shadow:0 0 0 0 rgba(34,197,94,.0) }
@@ -174,6 +195,14 @@
     box-shadow:0 8px 16px rgba(168,85,247,.25), inset 0 1px 0 rgba(255,255,255,.18);
   }
   .btn:disabled{ opacity:.6; cursor:not-allowed; transform:none !important; filter:none !important }
+
+  .btn.print{
+    width:100%; margin-top:6px;
+    background:linear-gradient(180deg, #22c55e, #059669);
+    color:#fff; font-size:12px; padding:10px;
+    text-shadow:0 1px 2px rgba(0,0,0,.28);
+    box-shadow:0 8px 16px rgba(34,197,94,.25), inset 0 1px 0 rgba(255,255,255,.18);
+  }
 
   /* ===============================
      Listas/itens (guia por acentos; microrecompensa no hover)
@@ -288,7 +317,7 @@
       <div></div> <!-- Spacer -->
       <div class="title-section">
         <div class="title">Assistente de Balcão</div>
-        <div>v1.10.9</div>
+        <div>v1.10.12</div>
       </div>
       <button id="minimize-btn" class="btn minimize" title="Minimizar">−</button>
     </div>
@@ -304,6 +333,7 @@
         <button id="btn-buscar-cpf" class="btn primary" title="Buscar CPF">🔍</button>
       </div>
       <div id="cliente-nome" class="name" style="margin-top:6px; min-height:18px; font-size:11px; color: var(--accent);"></div>
+      <button id="btn-imprimir" class="btn print" style="display:none" title="Imprimir Filipeta">IMPRIMIR FILIPETA</button>
     </div>
 
     <!-- EAN + Descrição do produto -->

@@ -52,6 +52,16 @@ try {
     getCacheStats: () => {
       console.log('📤 IPC: getCacheStats');
       return ipcRenderer.invoke('db-cache-stats');
+    },
+    
+    buscarPrecosFilipeta: (eans, nomes) => {
+      console.log('📤 IPC: buscarPrecosFilipeta', eans?.length, 'EANs', nomes?.length, 'nomes');
+      return ipcRenderer.invoke('db-buscar-precos-filipeta', eans, nomes);
+    },
+
+    buscarProdutosUsoContinuo: (cpf) => {
+      console.log('📤 IPC: buscarProdutosUsoContinuo');
+      return ipcRenderer.invoke('buscar-produtos-uso-continuo', cpf);
     }
   });
   console.log('✅ API DB (IPC) exposta com sucesso');
@@ -135,6 +145,11 @@ try {
     getVersion: () => {
       console.log('📤 IPC: updater-get-version');
       return ipcRenderer.invoke('updater-get-version');
+    },
+
+    imprimirFilipeta: (payload) => {
+      console.log('📤 IPC: imprimirFilipeta');
+      return ipcRenderer.invoke('imprimir-filipeta', payload);
     }
   });
   console.log('✅ API Electron (IPC) exposta com sucesso');

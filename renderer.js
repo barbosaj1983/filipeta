@@ -15,6 +15,11 @@
   };
   const onlyDigits = (s = '') => String(s).replace(/\D/g, '');
 
+  // Estado para impressão
+  let currentCpf = null;
+  let currentClienteNome = null;
+  let currentProdutosParaImprimir = null;
+
   // Elementos DOM
   const dom = {
     inputCpf: $('#cpf'),
@@ -32,7 +37,9 @@
     checkUpdateBtn: $('#check-update-btn'),
     updateStatus: $('#update-status'),
     progressBar: $('#progress-bar'),
-    progressFill: $('#progress-fill')
+    progressFill: $('#progress-fill'),
+    // BOTÃO IMPRIMIR
+    btnImprimir: $('#btn-imprimir')
   };
 
   console.log('📋 Elementos DOM encontrados:', {
@@ -237,6 +244,107 @@
       });
 
       // ========================================
+      // LÓGICA DE IMPRESSÃO: uso contínuo + mais consumidos
+      // ========================================
+      currentCpf = cpf;
+      currentClienteNome = cliente.nome;
+      currentProdutosParaImprimir = null;
+
+      // 1. Buscar produtos uso contínuo (≤35 dias)
+      let produtosFilipeta = [];
+      try {
+        const usoContinuo = await window.DB.buscarProdutosUsoContinuo(cpf);
+        console.log('📋 Uso contínuo RAW:', JSON.stringify(usoContinuo?.slice(0, 5)));
+        const filtrados = (usoContinuo || [])
+          .filter(p => p.dias_sem_compras <= 35 && String(p.nome || '').trim().length > 0)
+          .map(p => ({ 
+            ean: String(p.ean || '').replace(/\D/g, ''), 
+            nome: String(p.nome || '').trim() 
+          }));
+        console.log('📋 Uso contínuo após filtro ≤35 dias:', filtrados.length, filtrados.map(p => p.ean + ' | ' + p.nome));
+        produtosFilipeta = filtrados.slice(0, 5);
+        console.log(`📋 Uso contínuo ≤35 dias: ${produtosFilipeta.length} produtos`);
+      } catch (err) {
+        console.warn('⚠️ Erro ao buscar uso contínuo para filipeta:', err);
+      }
+
+      // 2. Completar com mais consumidos até 5, sem duplicar EAN
+      if (produtosFilipeta.length < 5) {
+        const eansJaUsados = new Set(produtosFilipeta.map(p => p.ean));
+        for (const p of maisConsumidos) {
+          if (produtosFilipeta.length >= 5) break;
+          if (!eansJaUsados.has(p.ean)) {
+            produtosFilipeta.push({ ean: p.ean, nome: p.nome });
+            eansJaUsados.add(p.ean);
+          }
+        }
+        console.log(`📋 Total após completar com mais consumidos: ${produtosFilipeta.length}`);
+      }
+
+      // 3. Completar com recomendados até 5, sem duplicar EAN
+      if (produtosFilipeta.length < 5) {
+        const eansJaUsados = new Set(produtosFilipeta.map(p => p.ean));
+        for (const p of recomendacoes) {
+          if (produtosFilipeta.length >= 5) break;
+          if (p.ean && !eansJaUsados.has(p.ean)) {
+            produtosFilipeta.push({ ean: p.ean, nome: p.nome });
+            eansJaUsados.add(p.ean);
+          }
+        }
+        console.log(`📋 Total após completar com recomendados: ${produtosFilipeta.length}`);
+      }
+
+      // 3. Buscar preços e validar
+      if (produtosFilipeta.length > 0 && window.DB.buscarPrecosFilipeta) {
+        try {
+          const eans = produtosFilipeta.map(p => p.ean).filter(Boolean);
+          const nomes = produtosFilipeta.map(p => p.nome).filter(Boolean);
+          console.log('🔍 EANs para buscar preços:', eans);
+          console.log('🔍 Nomes para buscar preços:', nomes);
+          const precos = await window.DB.buscarPrecosFilipeta(eans, nomes);
+          console.log('💰 Preços retornados:', precos.map(p => p.ean + ' - ' + p.nome_produto));
+
+          // Mapear por EAN e por nome
+          const precosMapEan = new Map();
+          const precosMapNome = new Map();
+          for (const p of precos) {
+            precosMapEan.set(p.ean, p);
+            if (p.nome_produto) precosMapNome.set(p.nome_produto.toUpperCase().trim(), p);
+          }
+
+          const merged = produtosFilipeta.map(p => {
+            // Tentar por EAN primeiro, depois por nome
+            let preco = precosMapEan.get(p.ean);
+            if (!preco && p.nome) {
+              preco = precosMapNome.get(p.nome.toUpperCase().trim());
+            }
+            if (!preco) {
+              console.warn('⚠️ SEM PREÇO - EAN:', p.ean, '| Nome:', p.nome);
+            }
+            return {
+              ean: p.ean,
+              nome: p.nome,
+              preco_de: preco ? preco.preco_de : null,
+              preco_por: preco ? preco.preco_por : null
+            };
+          });
+
+          const semPreco = merged.filter(p => p.preco_de === null || p.preco_por === null);
+          if (semPreco.length > 0) {
+            console.log('⚠️ Produtos sem preço:', semPreco.map(p => p.ean + ' - ' + p.nome).join(', '));
+          }
+          currentProdutosParaImprimir = merged;
+          if (dom.btnImprimir) dom.btnImprimir.style.display = 'block';
+          console.log('🖨️ Impressão disponível: ' + merged.length + ' produtos (' + (merged.length - semPreco.length) + ' com preço)');
+        } catch (err) {
+          console.error('❌ Erro ao buscar preços para impressão:', err);
+          if (dom.btnImprimir) dom.btnImprimir.style.display = 'none';
+        }
+      } else {
+        if (dom.btnImprimir) dom.btnImprimir.style.display = 'none';
+      }
+
+      // ========================================
       // NOVA FUNCIONALIDADE: POPUP DE USO CONTÍNUO
       // ========================================
       
@@ -293,7 +401,7 @@
       // Buscar produto e relacionados em paralelo
       const [produto, vendidosJuntos] = await Promise.all([
         window.DB.buscarProdutoPorEan(ean),
-        window.DB.buscarVendidosJuntos(ean, 6)
+        window.DB.buscarVendidosJuntos(ean, 10)
       ]);
 
       // Atualizar descrição do produto
@@ -573,6 +681,10 @@
     setText('#cliente-nome', '');
     renderList(dom.recomendados, [], 'Sem recomendações');
     renderList(dom.maisConsumidos, [], 'Sem dados');
+    currentCpf = null;
+    currentClienteNome = null;
+    currentProdutosParaImprimir = null;
+    if (dom.btnImprimir) dom.btnImprimir.style.display = 'none';
     showToast('🧹 CPF limpo');
   }
 
@@ -649,6 +761,51 @@
     } catch (error) {
       console.error('❌ Erro ao limpar cache:', error);
       showToast('❌ Erro ao limpar cache', 2000, true);
+    }
+  }
+
+  // =============================
+  // FUNÇÃO IMPRIMIR FILIPETA
+  // =============================
+
+  async function imprimirFilipeta() {
+    if (!currentProdutosParaImprimir || !currentCpf) {
+      showToast('⚠️ Busque um CPF primeiro', 2000, true);
+      return;
+    }
+
+    if (!window.electronAPI || !window.electronAPI.imprimirFilipeta) {
+      showToast('❌ Função de impressão não disponível', 2000, true);
+      return;
+    }
+
+    try {
+      if (dom.btnImprimir) {
+        dom.btnImprimir.disabled = true;
+        dom.btnImprimir.textContent = 'IMPRIMINDO...';
+      }
+
+      showToast('🖨️ Preparando filipeta...', 2000);
+
+      const result = await window.electronAPI.imprimirFilipeta({
+        cpf: currentCpf,
+        nomeCliente: currentClienteNome,
+        produtos: currentProdutosParaImprimir
+      });
+
+      if (result.success) {
+        showToast('✅ Filipeta enviada para impressão!', 3000);
+      } else {
+        showToast('❌ Erro na impressão: ' + (result.error || 'desconhecido'), 3000, true);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao imprimir filipeta:', error);
+      showToast('❌ Erro ao imprimir filipeta', 3000, true);
+    } finally {
+      if (dom.btnImprimir) {
+        dom.btnImprimir.disabled = false;
+        dom.btnImprimir.textContent = 'IMPRIMIR FILIPETA';
+      }
     }
   }
 
@@ -781,6 +938,15 @@
       console.warn('⚠️ Botão verificar updates não encontrado');
     }
 
+    // NOVO: Botão imprimir filipeta
+    if (dom.btnImprimir) {
+      console.log('✅ Configurando botão imprimir filipeta');
+      dom.btnImprimir.addEventListener('click', () => {
+        console.log('🖱️ Clique no botão imprimir filipeta');
+        imprimirFilipeta();
+      });
+    }
+
     // Atalhos de teclado globais
     document.addEventListener('keydown', (e) => {
       // Ctrl+M para minimizar
@@ -816,6 +982,13 @@
         e.preventDefault();
         console.log('⌨️ Atalho F9 para verificar updates');
         verificarAtualizacoes();
+      }
+
+      // NOVO: F3 para imprimir filipeta
+      if (e.key === 'F3') {
+        e.preventDefault();
+        console.log('⌨️ Atalho F3 para imprimir filipeta');
+        imprimirFilipeta();
       }
     });
 
@@ -915,7 +1088,8 @@
     buscarProdutoPorEan,
     minimizarJanela,
     abrirPopupUsoContinuo,
-    verificarAtualizacoes,  // NOVA FUNÇÃO ADICIONADA
+    verificarAtualizacoes,
+    imprimirFilipeta,
     dom,
     safeToFixed,
     formatPercentage
